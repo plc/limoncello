@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prello</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="board">
+    <div class="column" data-status="backlog">
+      <div class="column-header">
+        <h2>Backlog</h2>
+        <span class="card-count">0</span>
+      </div>
+      <div class="cards-container" data-status="backlog"></div>
+      <button class="add-card-btn" data-status="backlog">Add card</button>
+    </div>
+
+    <div class="column" data-status="todo">
+      <div class="column-header">
+        <h2>To Do</h2>
+        <span class="card-count">0</span>
+      </div>
+      <div class="cards-container" data-status="todo"></div>
+      <button class="add-card-btn" data-status="todo">Add card</button>
+    </div>
+
+    <div class="column" data-status="in_progress">
+      <div class="column-header">
+        <h2>In Progress</h2>
+        <span class="card-count">0</span>
+      </div>
+      <div class="cards-container" data-status="in_progress"></div>
+      <button class="add-card-btn" data-status="in_progress">Add card</button>
+    </div>
+
+    <div class="column" data-status="done">
+      <div class="column-header">
+        <h2>Done</h2>
+        <span class="card-count">0</span>
+      </div>
+      <div class="cards-container" data-status="done"></div>
+      <button class="add-card-btn" data-status="done">Add card</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="cardModal" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 contenteditable="true" id="modalTitle" class="editable-title"></h3>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Description</label>
+        <textarea id="modalDescription" rows="6"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="delete-btn" id="deleteCard">Delete</button>
+        <button class="save-btn" id="saveCard">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

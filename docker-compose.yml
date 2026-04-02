@@ -1,0 +1,17 @@
+# Docker Compose configuration for local development
+#
+# Usage:
+#   docker compose up --build     # Start Prello
+#   docker compose down           # Stop
+#   docker compose logs -f app    # View logs
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3654}:${PORT:-3654}"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-3654}
+    volumes:
+      - ./data:/app/data
