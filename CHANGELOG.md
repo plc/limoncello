@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-04-02 (v2)
+
+### Added
+- Bearer token auth via `PRELLO_API_KEY` env var (optional; if unset, no auth)
+- Web UI prompts for API key on 401 and stores in localStorage
+- MCP server (`src/mcp.mjs`) with tools: `prello_add`, `prello_list`, `prello_move`, `prello_board`
+- Deployed to Fly.io at https://prello.fly.dev with persistent SQLite volume
+
 ## 2026-04-02
 
 ### Added

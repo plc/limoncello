@@ -10,6 +10,7 @@
  * Environment variables:
  * - PORT: Server port (default: 3654)
  * - DATABASE_PATH: SQLite file path (default: ./data/prello.db)
+ * - PRELLO_API_KEY: Bearer token for API auth (optional; if unset, no auth required)
  */
 
 const path = require('path');
@@ -33,16 +34,28 @@ app.use(helmet({
 }));
 app.use(express.json());
 
-// Static files (web UI)
+// Auth middleware -- if PRELLO_API_KEY is set, require Bearer token on /api/* routes
+const apiKey = process.env.PRELLO_API_KEY;
+function requireAuth(req, res, next) {
+  if (!apiKey) return next();
+  const auth = req.headers.authorization;
+  if (!auth || auth !== `Bearer ${apiKey}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// Static files (web UI) -- served before auth so the board is accessible
+// The UI reads the API key from a meta tag injected at serve time
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Health checks
+// Health checks (no auth)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Card API
-app.use('/api/cards', cardsRouter);
+// Card API (auth required if PRELLO_API_KEY is set)
+app.use('/api/cards', requireAuth, cardsRouter);
 
 // 404 catch-all for API routes
 app.use('/api', (req, res) => {

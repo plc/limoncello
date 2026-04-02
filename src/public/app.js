@@ -4,6 +4,36 @@ let currentCard = null;
 let draggedCard = null;
 let sourceColumn = null;
 
+// Auth -- stored in localStorage, prompted on 401
+function getApiKey() {
+  return localStorage.getItem('prello_api_key') || '';
+}
+
+function setApiKey(key) {
+  localStorage.setItem('prello_api_key', key);
+}
+
+async function apiFetch(url, options = {}) {
+  const key = getApiKey();
+  const headers = { ...options.headers };
+  if (key) {
+    headers['Authorization'] = `Bearer ${key}`;
+  }
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    const newKey = prompt('API key required:');
+    if (newKey) {
+      setApiKey(newKey);
+      headers['Authorization'] = `Bearer ${newKey}`;
+      return fetch(url, { ...options, headers });
+    }
+  }
+
+  return response;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   loadCards();
@@ -13,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // API calls
 async function loadCards() {
   try {
-    const response = await fetch('/api/cards');
+    const response = await apiFetch('/api/cards');
     if (!response.ok) throw new Error('Failed to load cards');
     cards = await response.json();
     renderBoard();
@@ -24,7 +54,7 @@ async function loadCards() {
 
 async function createCard(status, title) {
   try {
-    const response = await fetch('/api/cards', {
+    const response = await apiFetch('/api/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, status })
@@ -40,7 +70,7 @@ async function createCard(status, title) {
 
 async function updateCard(id, updates) {
   try {
-    const response = await fetch(`/api/cards/${id}`, {
+    const response = await apiFetch(`/api/cards/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
@@ -59,7 +89,7 @@ async function updateCard(id, updates) {
 
 async function deleteCard(id) {
   try {
-    const response = await fetch(`/api/cards/${id}`, {
+    const response = await apiFetch(`/api/cards/${id}`, {
       method: 'DELETE'
     });
     if (!response.ok) throw new Error('Failed to delete card');
@@ -72,7 +102,7 @@ async function deleteCard(id) {
 
 async function reorderCards(reorderData) {
   try {
-    const response = await fetch('/api/cards/reorder', {
+    const response = await apiFetch('/api/cards/reorder', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cards: reorderData })
