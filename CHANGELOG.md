@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-04-02 (v9)
+
+### Added
+- Real-time board updates via WebSocket at `/ws` endpoint
+- New `src/ws.js` module: manages WebSocket connections, per-project subscriptions, and ping/pong keepalive
+- Frontend WebSocket client with exponential backoff reconnect
+- Card mutations (create, update, delete, reorder) broadcast to all connected browsers subscribed to the same project
+- WebSocket auth: if `PRELLO_API_KEY` is set, connections require `?token=<key>` query param
+
+### Changed
+- `src/index.js` refactored from `app.listen()` to `http.createServer(app)` + `server.listen()` to share the HTTP server with WebSocket
+- Added `ws` dependency
+
+## 2026-04-02 (v8)
+
+### Changed
+- `prello_create_project` MCP tool response now includes onboarding tip suggesting agents update their CLAUDE.md with board-specific instructions (project ID, session-start polling, card lifecycle)
+- Disabled `auto_stop_machines` on Fly.io to prevent MCP session drops from cold starts
+
+## 2026-04-02 (v7)
+
+### Added
+- Changes polling feature: agents can poll for recent card activity
+- `updated_at` column on cards table (ISO 8601 timestamp), auto-updated on card modifications
+- API endpoint `GET /api/projects/:projectId/cards/changes?since=<ISO8601>` returns cards modified since the given timestamp
+- Backward-compat endpoint `GET /api/cards/changes?since=<ISO8601>` for Default project
+- MCP tool `prello_changes` to fetch and format recent changes
+- Slash command `/prello-changes --since <timestamp>` for polling changes
+- Database migration: adds `updated_at` column to existing cards tables
+
+### Changed
+- CLAUDE.md now recommends agents poll for changes at session start using `prello_changes` or `prello_board`
+
 ## 2026-04-02 (v6)
 
 ### Added

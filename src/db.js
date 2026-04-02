@@ -83,6 +83,14 @@ function initSchema() {
     db.exec('ALTER TABLE cards ADD COLUMN substatus TEXT DEFAULT NULL');
     console.log('Added substatus column to cards table');
   }
+
+  // Migration: Add updated_at column if it doesn't exist
+  const updatedTableInfo = db.prepare("PRAGMA table_info(cards)").all();
+  const hasUpdatedAt = updatedTableInfo.some(col => col.name === 'updated_at');
+  if (!hasUpdatedAt && updatedTableInfo.length > 0) {
+    db.exec("ALTER TABLE cards ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))");
+    console.log('Added updated_at column to cards table');
+  }
 }
 
 /**

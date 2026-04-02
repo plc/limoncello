@@ -33,18 +33,20 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **MCP (STDIO)**: `src/mcp.mjs` -- STDIO transport entry point for local subprocess use
 - **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use
 - **MCP tools**: `src/mcp-tools.mjs` -- shared tool definitions used by both transports
+- **WebSocket**: `/ws` endpoint for real-time board updates (`src/ws.js`). Clients subscribe to a project; card mutations broadcast to all subscribers. Auth via `?token=` query param when `PRELLO_API_KEY` is set.
 
 ## Project Structure
 
 ```
 src/
-  index.js            # Express server entry point (includes /mcp HTTP transport)
+  index.js            # Express server entry point (includes /mcp HTTP transport, WebSocket setup)
   db.js               # SQLite connection + schema init
+  ws.js               # WebSocket server -- real-time broadcast to connected browsers
   mcp.mjs             # MCP server entry point (STDIO transport)
   mcp-tools.mjs       # Shared MCP tool definitions (used by both transports)
   lib/ids.js          # Card and project ID generation (crd_, prj_ prefixes)
   routes/projects.js  # Project CRUD API
-  routes/cards.js     # Card CRUD API
+  routes/cards.js     # Card CRUD API (broadcasts via WebSocket on mutations)
   public/
     index.html        # Kanban board UI
     style.css         # Board styles
@@ -56,6 +58,7 @@ src/
   prello-list.md             # /prello-list slash command
   prello-move.md             # /prello-move slash command
   prello-board.md            # /prello-board slash command
+  prello-changes.md          # /prello-changes slash command
 examples/
   columns-template.json      # Example column definition file for project creation
 ```
@@ -135,9 +138,34 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 }
 ```
 
-MCP tools: `prello_projects`, `prello_create_project` (with `columns_file`), `prello_add` (with substatus), `prello_list`, `prello_move` (with substatus), `prello_board`
+MCP tools: `prello_projects`, `prello_create_project` (with `columns_file`), `prello_add` (with substatus), `prello_list`, `prello_move` (with substatus), `prello_board`, `prello_changes`
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
+
+## Working with the Prello Board
+
+This project tracks its own work on a Prello board: **Prello Development** (`prj_UevwwjWyYEEG`).
+
+### On session start
+
+At the beginning of every session, check the board for current tasks:
+
+```
+prello_board(project_id: "prj_UevwwjWyYEEG")
+```
+
+Or use `prello_changes` with a `since` timestamp if you know when your last session ended. The `server_time` in the response can be stored and reused as `since` next time.
+
+### Working on tasks
+
+- Before starting work on a card, move it to `in_progress`
+- If blocked (waiting on human input, unclear requirements), move it to `blocked` with an appropriate substatus (`human_review` or `agent_review`)
+- When finished, move it to `done`
+- If you discover new work while implementing a task, add it as a new card in `backlog`
+
+### Why this matters
+
+The board is shared between humans and agents. Humans may add, reprioritize, or annotate cards via the web UI between agent sessions. Polling ensures you're working on what matters and not duplicating effort.
 
 ## API Endpoints
 
@@ -156,6 +184,7 @@ All card tools accept optional `project_id` parameter (defaults to Default proje
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /api/projects/:projectId/cards | List cards in project (optional `?status=`) |
+| GET | /api/projects/:projectId/cards/changes | Get cards changed since timestamp (required `?since=<ISO8601>`) |
 | POST | /api/projects/:projectId/cards | Create card in project (accepts optional `substatus`) |
 | GET | /api/projects/:projectId/cards/:id | Get card |
 | PATCH | /api/projects/:projectId/cards/:id | Update card (substatus auto-clears on column change) |
@@ -168,6 +197,7 @@ All card tools accept optional `project_id` parameter (defaults to Default proje
 |--------|------|-------------|
 | GET | /health | Health check (no auth) |
 | GET | /api/cards | List cards in Default project (optional `?status=`) |
+| GET | /api/cards/changes | Get cards changed since timestamp (required `?since=<ISO8601>`) |
 | POST | /api/cards | Create card in Default project |
 | GET | /api/cards/:id | Get card |
 | PATCH | /api/cards/:id | Update card |
@@ -190,6 +220,10 @@ Columns can define sub-statuses. Default columns include `blocked` with sub-stat
 | **SPEC.md** | When API, schema, or architecture changes |
 | **README.md** | When user-facing details change |
 | **CLAUDE.md** | When project context changes |
+
+## Gotchas
+
+- **Fly.io SSH tests unreliable**: The machine has `auto_stop_machines = 'stop'` in `fly.toml`, so `fly ssh console` often fails with "Connection refused" because the machine is stopped. Don't waste time debugging SSH -- test via the public URL (`https://prello.fly.dev/...`) instead.
 
 ## Git Workflow
 

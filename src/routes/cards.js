@@ -11,6 +11,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { cardId } = require('../lib/ids');
+const { broadcast } = require('../ws');
 
 const router = express.Router({ mergeParams: true });
 
@@ -64,6 +65,36 @@ function validateProject(req, res, next) {
 }
 
 router.use(validateProject);
+
+/**
+ * GET /changes
+ * Get cards that have changed since a given timestamp.
+ * Query params: ?since=<ISO8601>
+ * Returns: { cards: [...], server_time: "2026-04-02T..." }
+ */
+router.get('/changes', (req, res) => {
+  const { since } = req.query;
+
+  if (!since || typeof since !== 'string') {
+    return res.status(400).json({ error: 'Query param "since" is required and must be an ISO 8601 timestamp' });
+  }
+
+  // Validate ISO 8601 format
+  const sinceDate = new Date(since);
+  if (isNaN(sinceDate.getTime())) {
+    return res.status(400).json({ error: 'Invalid ISO 8601 timestamp for "since" parameter' });
+  }
+
+  // Get cards that have been updated since the given timestamp
+  const cards = db.prepare(
+    'SELECT * FROM cards WHERE project_id = ? AND updated_at > ? ORDER BY updated_at ASC'
+  ).all(req.projectId, since);
+
+  res.json({
+    cards,
+    server_time: new Date().toISOString(),
+  });
+});
 
 /**
  * GET /
@@ -132,6 +163,7 @@ router.post('/', (req, res) => {
   `).run(id, req.projectId, title.trim(), description, status, validatedSubstatus, position);
 
   const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  broadcast(req.projectId, { type: 'card_created', card });
   res.status(201).json(card);
 });
 
@@ -159,6 +191,7 @@ router.patch('/reorder', (req, res) => {
 
   try {
     updateMany(cards);
+    broadcast(req.projectId, { type: 'cards_reordered', cards });
     res.json({ updated: cards.length });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -274,6 +307,7 @@ router.patch('/:id', (req, res) => {
   db.prepare(`UPDATE cards SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
   const updatedCard = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  broadcast(req.projectId, { type: 'card_updated', card: updatedCard });
   res.json(updatedCard);
 });
 
@@ -288,6 +322,7 @@ router.delete('/:id', (req, res) => {
     return res.status(404).json({ error: 'Card not found' });
   }
 
+  broadcast(req.projectId, { type: 'card_deleted', cardId: req.params.id });
   res.status(204).send();
 });
 

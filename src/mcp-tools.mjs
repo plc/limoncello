@@ -184,6 +184,15 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
           text += `\n  ${col.label}: ${col.substatuses.map(s => s.label).join(', ')}`;
         }
       }
+
+      text += `\n\n---\nTip: To get the most out of Prello, add instructions to your project's CLAUDE.md (or equivalent) so you and future sessions remember to use this board. Example:\n`;
+      text += `\n## Prello Board\n`;
+      text += `This project tracks work on a Prello board: **${project.name}** (\`${project.id}\`).\n`;
+      text += `- At session start, run \`prello_board(project_id: "${project.id}")\` to check for current tasks\n`;
+      text += `- Move cards to \`in_progress\` when starting work, \`done\` when finished\n`;
+      text += `- Add new cards to \`backlog\` when you discover work\n`;
+      text += `- If blocked or need human input, move cards to \`blocked\``;
+
       return { content: [{ type: 'text', text }] };
     }
   );
@@ -322,6 +331,60 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
           text: `Moved "${card.title}" to ${statusLabel}${subLabel}`,
         }],
       };
+    }
+  );
+
+  // Tool: prello_changes
+  server.tool(
+    'prello_changes',
+    'Get cards that have changed since a given timestamp. Use this to poll for recent activity on the board.',
+    {
+      since: z.string().describe('ISO 8601 timestamp (e.g., "2026-04-02T10:30:00.000Z"). Only cards updated after this time will be returned.'),
+      project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
+    },
+    async ({ since, project_id }) => {
+      const path = project_id
+        ? `/api/projects/${project_id}/cards/changes?since=${encodeURIComponent(since)}`
+        : `/api/cards/changes?since=${encodeURIComponent(since)}`;
+
+      const result = await api(path);
+
+      // Get project info for column labels
+      const project = await getProjectInfo(project_id);
+      if (!project) {
+        return {
+          content: [{ type: 'text', text: 'No project found.' }],
+        };
+      }
+
+      const columnLabels = buildColumnLabels(project);
+      const substatusLabels = buildSubstatusLabels(project);
+
+      if (result.cards.length === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: `No changes since ${since}\n\nServer time: ${result.server_time}`,
+          }],
+        };
+      }
+
+      let text = `CHANGES SINCE ${since}\n${'='.repeat(60)}\n\n`;
+      text += `Found ${result.cards.length} changed card(s):\n\n`;
+
+      for (const card of result.cards) {
+        const statusLabel = columnLabels[card.status] || card.status;
+        const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+        const desc = card.description ? `\n  Description: ${card.description}` : '';
+        text += `[${card.id}] ${card.title}\n`;
+        text += `  Status: ${statusLabel}${subLabel}\n`;
+        text += `  Updated: ${card.updated_at}${desc}\n\n`;
+      }
+
+      text += `Server time: ${result.server_time}\n`;
+      text += `\nTip: Use this server_time value as "since" for your next poll.`;
+
+      return { content: [{ type: 'text', text: text.trim() }] };
     }
   );
 

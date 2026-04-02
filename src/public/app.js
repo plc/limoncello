@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupProjectModal();
   setupHeaderButtons();
   loadProjects();
+  connectWebSocket();
 });
 
 // --- Projects ---
@@ -93,6 +94,7 @@ function selectProject(project) {
   currentProject = project;
   saveProjectId(project.id);
   document.getElementById('projectSelect').value = project.id;
+  wsSubscribe(project.id);
   renderColumns();
   loadCards();
 }
@@ -841,5 +843,94 @@ async function deleteCurrentProject() {
   } catch (error) {
     console.error('Error deleting project:', error);
     alert('Failed to delete project');
+  }
+}
+
+// --- WebSocket for real-time updates ---
+
+let ws = null;
+let wsReconnectDelay = 1000;
+const WS_MAX_RECONNECT_DELAY = 30000;
+
+function connectWebSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const key = getApiKey();
+  const params = key ? `?token=${encodeURIComponent(key)}` : '';
+  const url = `${protocol}//${location.host}/ws${params}`;
+
+  ws = new WebSocket(url);
+
+  ws.addEventListener('open', () => {
+    wsReconnectDelay = 1000;
+    if (currentProject) {
+      ws.send(JSON.stringify({ type: 'subscribe', projectId: currentProject.id }));
+    }
+  });
+
+  ws.addEventListener('message', (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      handleWsMessage(msg);
+    } catch (e) {
+      console.error('WebSocket message parse error:', e);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    ws = null;
+    setTimeout(connectWebSocket, wsReconnectDelay);
+    wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_RECONNECT_DELAY);
+  });
+
+  ws.addEventListener('error', () => {
+    if (ws) ws.close();
+  });
+}
+
+function wsSubscribe(projectId) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'subscribe', projectId }));
+  }
+}
+
+function handleWsMessage(msg) {
+  switch (msg.type) {
+    case 'card_created':
+      if (!cards.find(c => c.id === msg.card.id)) {
+        cards.push(msg.card);
+        renderBoard();
+      }
+      break;
+
+    case 'card_updated': {
+      const idx = cards.findIndex(c => c.id === msg.card.id);
+      if (idx !== -1) {
+        cards[idx] = msg.card;
+      } else {
+        cards.push(msg.card);
+      }
+      renderBoard();
+      if (currentCard && currentCard.id === msg.card.id) {
+        currentCard = msg.card;
+        openCardModal(msg.card);
+      }
+      break;
+    }
+
+    case 'card_deleted':
+      cards = cards.filter(c => c.id !== msg.cardId);
+      renderBoard();
+      if (currentCard && currentCard.id === msg.cardId) {
+        closeCardModal();
+      }
+      break;
+
+    case 'cards_reordered':
+      for (const update of msg.cards) {
+        const card = cards.find(c => c.id === update.id);
+        if (card) card.position = update.position;
+      }
+      renderBoard();
+      break;
   }
 }

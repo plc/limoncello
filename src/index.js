@@ -15,9 +15,11 @@
  */
 
 const crypto = require('node:crypto');
+const http = require('http');
 const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
+const { setup: setupWebSocket } = require('./ws');
 const { db, initSchema } = require('./db');
 const projectsRouter = require('./routes/projects');
 const cardsRouter = require('./routes/cards');
@@ -159,7 +161,10 @@ async function start() {
     });
   });
 
-  app.listen(port, '0.0.0.0', () => {
+  const server = http.createServer(app);
+  setupWebSocket(server, apiKey);
+
+  server.listen(port, '0.0.0.0', () => {
     console.log(`Prello running on http://localhost:${port}`);
   });
 }
