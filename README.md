@@ -139,7 +139,7 @@ SQLite data persists on a Fly.io volume. Auth is required via `PRELLO_API_KEY` s
 |----------|---------|-------------|
 | PORT | 3654 | Server port |
 | DATABASE_PATH | ./data/prello.db | SQLite database file path |
-| PRELLO_API_KEY | (none) | Bearer token for API auth (required when deployed) |
+| PRELLO_API_KEY | (none) | Bearer token for API auth (required when deployed). Must not resemble a third-party key (e.g., Stripe `sk_live_*` / `sk_test_*` patterns are rejected on startup). Use a random string like `openssl rand -base64 32`. |
 
 ## License
 

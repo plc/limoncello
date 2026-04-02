@@ -86,8 +86,9 @@ router.get('/changes', (req, res) => {
   }
 
   // Get cards that have been updated since the given timestamp
+  // Use datetime() to ensure ISO 8601 timestamps are properly compared
   const cards = db.prepare(
-    'SELECT * FROM cards WHERE project_id = ? AND updated_at > ? ORDER BY updated_at ASC'
+    'SELECT * FROM cards WHERE project_id = ? AND updated_at > datetime(?) ORDER BY updated_at ASC'
   ).all(req.projectId, since);
 
   res.json({

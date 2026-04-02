@@ -33,6 +33,8 @@ app.use(helmet({
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       'script-src': ["'self'", "'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      'font-src': ["'self'", "https://fonts.gstatic.com"],
       'upgrade-insecure-requests': null,
     },
   },
@@ -41,6 +43,12 @@ app.use(express.json());
 
 // Auth middleware -- if PRELLO_API_KEY is set, require Bearer token on /api/* and /mcp routes
 const apiKey = process.env.PRELLO_API_KEY;
+
+// Reject API keys that look like third-party credentials (Stripe, etc.)
+if (apiKey && /^(sk|pk|rk)_(live|test)_/i.test(apiKey)) {
+  console.error('PRELLO_API_KEY looks like a Stripe key. Use a dedicated key for Prello, not a third-party credential.');
+  process.exit(1);
+}
 function requireAuth(req, res, next) {
   if (!apiKey) return next();
   const auth = req.headers.authorization;

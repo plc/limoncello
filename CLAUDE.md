@@ -224,6 +224,7 @@ Columns can define sub-statuses. Default columns include `blocked` with sub-stat
 ## Gotchas
 
 - **Fly.io SSH tests unreliable**: The machine has `auto_stop_machines = 'stop'` in `fly.toml`, so `fly ssh console` often fails with "Connection refused" because the machine is stopped. Don't waste time debugging SSH -- test via the public URL (`https://prello.fly.dev/...`) instead.
+- **API key format**: `PRELLO_API_KEY` must not resemble a third-party credential. The server rejects keys matching Stripe patterns (`sk_live_*`, `sk_test_*`, `pk_*`, `rk_*`) on startup. Use a dedicated random string (e.g., `openssl rand -base64 32`).
 
 ## Git Workflow
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-04-02 (v11)
+
+### Changed
+- UI font changed to Jost (loaded from Google Fonts, system stack as fallback)
+- CSP updated to allow `fonts.googleapis.com` and `fonts.gstatic.com`
+
+## 2026-04-02 (v10)
+
+### Added
+- Startup guard: rejects `PRELLO_API_KEY` values matching Stripe key patterns (`sk_live_*`, `sk_test_*`, `pk_*`, `rk_*`) to prevent accidental use of third-party credentials
+- Comprehensive test suite (192 tests) using Node's built-in test runner (`node:test`) with `supertest`
+- `test/ids.test.js` -- ID generation: prefix, length, character set, uniqueness
+- `test/db.test.js` -- database schema: tables, columns, constraints, foreign keys, indexes, WAL mode
+- `test/projects.test.js` -- Projects API: full CRUD, column/substatus validation, edge cases
+- `test/cards.test.js` -- Cards API: full CRUD, status/substatus handling, reorder, changes polling, backward compat
+- `test/ws.test.js` -- WebSocket: connection auth, subscription, broadcast, cleanup
+- `test/auth.test.js` -- auth middleware: Bearer token validation, public endpoints, Stripe key guard
+- `npm test` script runs all tests via `node --test test/*.test.js`
+- `supertest` added as dev dependency
+
+### Fixed
+- `/changes` endpoint: wrap `since` parameter in SQLite's `datetime()` for proper ISO 8601 timestamp comparison
+
 ## 2026-04-02 (v9)
 
 ### Added

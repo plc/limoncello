@@ -82,6 +82,11 @@ function setup(server, apiKey) {
   }, 30000);
 
   wss.on('close', () => clearInterval(interval));
+
+  // Store reference on server for cleanup
+  server._wss = wss;
+
+  return wss;
 }
 
 /**
