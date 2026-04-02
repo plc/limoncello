@@ -7,43 +7,19 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="board">
-    <div class="column" data-status="backlog">
-      <div class="column-header">
-        <h2>Backlog</h2>
-        <span class="card-count">0</span>
-      </div>
-      <div class="cards-container" data-status="backlog"></div>
-      <button class="add-card-btn" data-status="backlog">Add card</button>
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title">Prello</h1>
     </div>
+    <div class="header-center">
+      <select id="projectSelect" class="project-select"></select>
+      <button class="header-btn" id="newProjectBtn" title="New project">+</button>
+      <button class="header-btn" id="editProjectBtn" title="Project settings">&#9881;</button>
+    </div>
+    <div class="header-right"></div>
+  </header>
 
-    <div class="column" data-status="todo">
-      <div class="column-header">
-        <h2>To Do</h2>
-        <span class="card-count">0</span>
-      </div>
-      <div class="cards-container" data-status="todo"></div>
-      <button class="add-card-btn" data-status="todo">Add card</button>
-    </div>
-
-    <div class="column" data-status="in_progress">
-      <div class="column-header">
-        <h2>In Progress</h2>
-        <span class="card-count">0</span>
-      </div>
-      <div class="cards-container" data-status="in_progress"></div>
-      <button class="add-card-btn" data-status="in_progress">Add card</button>
-    </div>
-
-    <div class="column" data-status="done">
-      <div class="column-header">
-        <h2>Done</h2>
-        <span class="card-count">0</span>
-      </div>
-      <div class="cards-container" data-status="done"></div>
-      <button class="add-card-btn" data-status="done">Add card</button>
-    </div>
-  </div>
+  <div class="board" id="board"></div>
 
   <div class="modal-overlay" id="cardModal" style="display: none;">
     <div class="modal">
@@ -54,10 +30,35 @@
       <div class="modal-body">
         <label>Description</label>
         <textarea id="modalDescription" rows="6"></textarea>
+        <div id="substatusContainer" style="display: none; margin-top: 16px;">
+          <label for="modalSubstatus">Sub-status</label>
+          <select id="modalSubstatus" class="text-input"></select>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="delete-btn" id="deleteCard">Delete</button>
         <button class="save-btn" id="saveCard">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="projectModal" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="projectModalTitle">Project Settings</h3>
+        <button class="close-btn" id="closeProjectModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="projectName">Project Name</label>
+        <input type="text" id="projectName" class="text-input" />
+
+        <label style="margin-top: 16px; display: block;">Columns</label>
+        <div id="columnsEditor" class="columns-editor"></div>
+        <button class="add-column-btn" id="addColumnBtn">+ Add column</button>
+      </div>
+      <div class="modal-footer">
+        <button class="delete-btn" id="deleteProject">Delete Project</button>
+        <button class="save-btn" id="saveProject">Save</button>
       </div>
     </div>
   </div>

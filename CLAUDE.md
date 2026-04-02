@@ -4,7 +4,9 @@ Instructions for Claude Code. See [SPEC.md](SPEC.md) for the full product spec.
 
 ## Project Overview
 
-Prello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server or slash commands. Both create and manage cards on a shared board.
+Prello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server or slash commands. Both create and manage cards on shared projects.
+
+Projects feature: Each project has its own custom columns. Cards belong to projects. The Default project provides backward compatibility.
 
 Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend.
 
@@ -17,32 +19,45 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 ## Key Architecture
 
 - **Database**: SQLite at `./data/prello.db` -- created automatically on first run
-- **Schema-on-startup**: Table created via `CREATE TABLE IF NOT EXISTS` in `src/db.js`
-- **IDs**: nanoid with `crd_` prefix (`src/lib/ids.js`)
+- **Schema-on-startup**: Tables (projects, cards) created via `CREATE TABLE IF NOT EXISTS` in `src/db.js`
+- **Projects table**: Each project has custom columns (stored as JSON array of {key, label, substatuses})
+- **Cards table**: Cards belong to projects via `project_id` foreign key
+- **Default project**: Created on first run for backward compatibility
+- **Sub-statuses**: Columns can define optional sub-statuses. Cards have nullable `substatus` field, validated against column definition
+- **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects (`src/lib/ids.js`)
 - **Port**: 3654
 - **Auth**: Bearer token via `PRELLO_API_KEY` (optional; if unset, no auth required)
-- **API**: REST at `/api/cards` (`src/routes/cards.js`)
-- **UI**: Vanilla HTML/CSS/JS served from `src/public/`
-- **MCP**: `src/mcp.mjs` -- MCP server for Claude Desktop / Claude Code integration
+- **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
+- **Backward compat**: `/api/cards` routes to Default project
+- **UI**: Vanilla HTML/CSS/JS served from `src/public/`, dynamic columns based on selected project
+- **MCP (STDIO)**: `src/mcp.mjs` -- STDIO transport entry point for local subprocess use
+- **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use
+- **MCP tools**: `src/mcp-tools.mjs` -- shared tool definitions used by both transports
 
 ## Project Structure
 
 ```
 src/
-  index.js          # Express server entry point
-  db.js             # SQLite connection + schema init
-  mcp.mjs           # MCP server (STDIO transport)
-  lib/ids.js        # Card ID generation (crd_ prefix)
-  routes/cards.js   # Card CRUD API
+  index.js            # Express server entry point (includes /mcp HTTP transport)
+  db.js               # SQLite connection + schema init
+  mcp.mjs             # MCP server entry point (STDIO transport)
+  mcp-tools.mjs       # Shared MCP tool definitions (used by both transports)
+  lib/ids.js          # Card and project ID generation (crd_, prj_ prefixes)
+  routes/projects.js  # Project CRUD API
+  routes/cards.js     # Card CRUD API
   public/
-    index.html      # Kanban board UI
-    style.css       # Board styles
-    app.js          # Client-side JS
+    index.html        # Kanban board UI
+    style.css         # Board styles
+    app.js            # Client-side JS
 .claude/commands/
-  prello-add.md     # /prello-add slash command
-  prello-list.md    # /prello-list slash command
-  prello-move.md    # /prello-move slash command
-  prello-board.md   # /prello-board slash command
+  prello-projects.md         # /prello-projects slash command
+  prello-create-project.md   # /prello-create-project slash command
+  prello-add.md              # /prello-add slash command
+  prello-list.md             # /prello-list slash command
+  prello-move.md             # /prello-move slash command
+  prello-board.md            # /prello-board slash command
+examples/
+  columns-template.json      # Example column definition file for project creation
 ```
 
 ## Common Tasks
@@ -63,22 +78,45 @@ docker compose up --build
 # Health check
 curl http://127.0.0.1:3654/health
 
-# Create a card (local, no auth)
+# List projects
+curl http://127.0.0.1:3654/api/projects
+
+# Create a card in Default project (local, no auth)
 curl -X POST http://127.0.0.1:3654/api/cards \
   -H "Content-Type: application/json" \
   -d '{"title": "Test card", "status": "todo"}'
 
-# Create a card (production, with auth)
-curl -X POST https://prello.fly.dev/api/cards \
+# Create a card with substatus
+curl -X POST http://127.0.0.1:3654/api/cards \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Needs review", "status": "blocked", "substatus": "human_review"}'
+
+# Create a card in specific project (production, with auth)
+curl -X POST https://prello.fly.dev/api/projects/prj_abc123/cards \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $PRELLO_API_KEY" \
   -d '{"title": "Test card", "status": "todo"}'
 
-# List cards
+# List cards in Default project
 curl http://127.0.0.1:3654/api/cards
+
+# List cards in specific project
+curl http://127.0.0.1:3654/api/projects/prj_abc123/cards
 ```
 
 ## MCP Server Configuration
+
+### Remote (Streamable HTTP -- recommended)
+
+No local process needed. Claude Code connects directly to the deployed server:
+
+```bash
+claude mcp add prello -s user --transport http \
+  --header "Authorization: Bearer <your-api-key>" \
+  -- https://prello.fly.dev/mcp
+```
+
+### Local (STDIO)
 
 For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`):
 
@@ -97,15 +135,40 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 }
 ```
 
-MCP tools: `prello_add`, `prello_list`, `prello_move`, `prello_board`
+MCP tools: `prello_projects`, `prello_create_project` (with `columns_file`), `prello_add` (with substatus), `prello_list`, `prello_move` (with substatus), `prello_board`
+
+All card tools accept optional `project_id` parameter (defaults to Default project).
 
 ## API Endpoints
+
+### Project Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/projects | List projects |
+| POST | /api/projects | Create project |
+| GET | /api/projects/:id | Get project |
+| PATCH | /api/projects/:id | Update project |
+| DELETE | /api/projects/:id | Delete project |
+
+### Card Endpoints (Project-scoped)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/projects/:projectId/cards | List cards in project (optional `?status=`) |
+| POST | /api/projects/:projectId/cards | Create card in project (accepts optional `substatus`) |
+| GET | /api/projects/:projectId/cards/:id | Get card |
+| PATCH | /api/projects/:projectId/cards/:id | Update card (substatus auto-clears on column change) |
+| DELETE | /api/projects/:projectId/cards/:id | Delete card |
+| PATCH | /api/projects/:projectId/cards/reorder | Batch update positions |
+
+### Backward Compatibility (Default project)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Health check (no auth) |
-| GET | /api/cards | List cards (optional `?status=`) |
-| POST | /api/cards | Create card |
+| GET | /api/cards | List cards in Default project (optional `?status=`) |
+| POST | /api/cards | Create card in Default project |
 | GET | /api/cards/:id | Get card |
 | PATCH | /api/cards/:id | Update card |
 | DELETE | /api/cards/:id | Delete card |
@@ -113,7 +176,11 @@ MCP tools: `prello_add`, `prello_list`, `prello_move`, `prello_board`
 
 ## Valid Statuses
 
-`backlog`, `todo`, `in_progress`, `done`
+Statuses are dynamic per project, defined by each project's `columns` field (JSON array).
+
+Default columns for new projects: `backlog`, `todo`, `in_progress`, `blocked`, `done`
+
+Columns can define sub-statuses. Default columns include `blocked` with sub-statuses: `human_review`, `agent_review`
 
 ## Documentation Maintenance
 

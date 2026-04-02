@@ -13,9 +13,12 @@ Open http://localhost:3654 in your browser.
 
 ## Features
 
-- Four-column Kanban board: Backlog, To Do, In Progress, Done
+- Multiple projects with custom columns per project
+- Sub-statuses per column (e.g., Blocked with Human Review / Agent Review)
+- Dynamic Kanban board that adapts to each project's column configuration
 - Drag-and-drop cards between columns and reorder within columns
 - Create, edit, and delete cards from the web UI
+- Project management: create projects, define custom columns, switch between projects
 - MCP server for Claude Desktop and Claude Code integration
 - Slash commands for Claude Code
 - SQLite database -- zero configuration, data persists in `./data/prello.db`
@@ -23,7 +26,21 @@ Open http://localhost:3654 in your browser.
 
 ## MCP Server (Claude Desktop / Claude Code)
 
-The MCP server lets Claude create, list, move, and view cards as part of its workflow.
+The MCP server lets Claude create, list, move, and view cards as part of its workflow. Two transports are available:
+
+### Remote (Streamable HTTP -- recommended)
+
+Connect Claude Code directly to a deployed Prello instance. No local process needed:
+
+```bash
+claude mcp add prello -s user --transport http \
+  --header "Authorization: Bearer <your-api-key>" \
+  -- https://prello.fly.dev/mcp
+```
+
+The `/mcp` endpoint supports the MCP Streamable HTTP transport with stateful sessions. Auth uses the same `PRELLO_API_KEY` bearer token as the REST API.
+
+### Local (STDIO)
 
 Add to your Claude Desktop config (`claude_desktop_config.json`) or Claude Code project config:
 
@@ -44,7 +61,13 @@ Add to your Claude Desktop config (`claude_desktop_config.json`) or Claude Code 
 
 For local use without auth, set `PRELLO_URL` to `http://localhost:3654` and omit `PRELLO_API_KEY`.
 
-Tools: `prello_add`, `prello_list`, `prello_move`, `prello_board`
+### Tools
+
+`prello_projects`, `prello_create_project`, `prello_add`, `prello_list`, `prello_move`, `prello_board`
+
+The `prello_create_project` tool accepts an optional `columns_file` parameter -- a path to a JSON file defining the project's name and columns. See `examples/columns-template.json` for the format.
+
+All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
 ## Slash Commands (Claude Code)
 
@@ -52,22 +75,51 @@ With the Prello server running, use these slash commands in Claude Code:
 
 | Command | Description |
 |---------|-------------|
-| `/prello-add "title" [--status todo] [--description "..."]` | Create a card |
-| `/prello-list [--status in_progress]` | List cards |
-| `/prello-move <card-id> <status>` | Move a card |
-| `/prello-board` | Board overview |
+| `/prello-projects` | List all projects |
+| `/prello-create-project "name" [--file <path>]` | Create a project (optionally from a JSON file) |
+| `/prello-add "title" [--status todo] [--substatus key] [--description "..."] [--project <id>]` | Create a card |
+| `/prello-list [--status in_progress] [--project <id>]` | List cards |
+| `/prello-move <card-id> <status> [--substatus key] [--project <id>]` | Move a card |
+| `/prello-board [--project <id>]` | Board overview |
+
+All card commands accept an optional `--project <project-id>` parameter. If omitted, they operate on the Default project.
 
 ## API
 
-All endpoints are at `/api/cards`. When `PRELLO_API_KEY` is set, requests require `Authorization: Bearer <key>` header.
+When `PRELLO_API_KEY` is set, requests require `Authorization: Bearer <key>` header.
+
+### Project Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/projects | List all projects |
+| POST | /api/projects | Create a project `{ name, columns? }` |
+| GET | /api/projects/:id | Get a project |
+| PATCH | /api/projects/:id | Update a project |
+| DELETE | /api/projects/:id | Delete a project |
+
+### Card Endpoints (Project-scoped)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/projects/:projectId/cards | List cards in project (filter with `?status=`) |
+| POST | /api/projects/:projectId/cards | Create a card `{ title, description?, status?, substatus? }` |
+| GET | /api/projects/:projectId/cards/:id | Get a card |
+| PATCH | /api/projects/:projectId/cards/:id | Update a card (substatus auto-clears on column change) |
+| DELETE | /api/projects/:projectId/cards/:id | Delete a card |
+| PATCH | /api/projects/:projectId/cards/reorder | Batch update positions |
+
+### Card Endpoints (Backward Compatibility)
+
+For backward compatibility, `/api/cards` routes to the Default project:
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Health check (no auth required) |
-| GET | /api/cards | List all cards (filter with `?status=`) |
-| POST | /api/cards | Create a card `{ title, description?, status? }` |
+| GET | /api/cards | List cards in Default project (filter with `?status=`) |
+| POST | /api/cards | Create a card in Default project `{ title, description?, status?, substatus? }` |
 | GET | /api/cards/:id | Get a card |
-| PATCH | /api/cards/:id | Update a card |
+| PATCH | /api/cards/:id | Update a card (substatus auto-clears on column change) |
 | DELETE | /api/cards/:id | Delete a card |
 | PATCH | /api/cards/reorder | Batch update positions |
 

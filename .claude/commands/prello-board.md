@@ -5,42 +5,56 @@ Show a summary overview of the Prello Kanban board.
 ## Usage
 
 ```
-/prello-board
+/prello-board [--project <project-id>]
 ```
 
 ## Arguments
 
-None.
+- `--project`: Optional project ID (default: uses Default project)
 
 ## Instructions
 
-Use the Bash tool with curl to GET all cards from the API:
+Parse the arguments from `$ARGUMENTS`:
+1. Parse `--project` flag if present to get the project ID
 
+Use the Bash tool with curl to GET from the API:
+
+If `--project` is provided, first get the project info to display project name and column labels:
+```bash
+curl -X GET http://127.0.0.1:3654/api/projects/<project-id>
+```
+
+Then get the cards for that project:
+```bash
+curl -X GET http://127.0.0.1:3654/api/projects/<project-id>/cards
+```
+
+If no `--project` flag (uses Default project):
 ```bash
 curl -X GET http://127.0.0.1:3654/api/cards
 ```
 
 Display a board overview with:
 
-1. Summary section showing count of cards per column:
+1. If a project was specified, show project name and ID
+
+2. Summary section showing count of cards per column:
    ```
    BOARD SUMMARY
    =============
-   Backlog: N cards
-   Todo: N cards
-   In Progress: N cards
-   Done: N cards
+   <Column Label>: N cards
+   (for each column defined in the project)
    Total: N cards
    ```
 
-2. Detailed view grouped by status:
-   - For each column (backlog, todo, in_progress, done):
-     - Show column header
+3. Detailed view grouped by status:
+   - For each column defined by the project (use column labels from project):
+     - Show column header (using the label from project)
      - List cards in position order
      - Format: `[ID] Title`
    - Use visual separators between columns
 
-3. If the board is empty, display:
+4. If the board is empty, display:
    ```
    BOARD SUMMARY
    =============

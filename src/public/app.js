@@ -1,4 +1,6 @@
 // State
+let projects = [];
+let currentProject = null;
 let cards = [];
 let currentCard = null;
 let draggedCard = null;
@@ -34,16 +36,87 @@ async function apiFetch(url, options = {}) {
   return response;
 }
 
+// Persistence for selected project
+function getSavedProjectId() {
+  return localStorage.getItem('prello_project_id') || '';
+}
+
+function saveProjectId(id) {
+  localStorage.setItem('prello_project_id', id);
+}
+
+// API base path for the current project
+function cardsBasePath() {
+  return `/api/projects/${currentProject.id}/cards`;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  loadCards();
-  setupEventListeners();
+  setupModal();
+  setupProjectModal();
+  setupHeaderButtons();
+  loadProjects();
 });
 
-// API calls
+// --- Projects ---
+
+async function loadProjects() {
+  try {
+    const response = await apiFetch('/api/projects');
+    if (!response.ok) throw new Error('Failed to load projects');
+    projects = await response.json();
+
+    renderProjectSelector();
+
+    // Restore saved selection or use first project
+    const savedId = getSavedProjectId();
+    const saved = projects.find(p => p.id === savedId);
+    selectProject(saved || projects[0]);
+  } catch (error) {
+    console.error('Error loading projects:', error);
+  }
+}
+
+function renderProjectSelector() {
+  const select = document.getElementById('projectSelect');
+  select.innerHTML = '';
+  projects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+}
+
+function selectProject(project) {
+  if (!project) return;
+  currentProject = project;
+  saveProjectId(project.id);
+  document.getElementById('projectSelect').value = project.id;
+  renderColumns();
+  loadCards();
+}
+
+function setupHeaderButtons() {
+  document.getElementById('projectSelect').addEventListener('change', (e) => {
+    const project = projects.find(p => p.id === e.target.value);
+    selectProject(project);
+  });
+
+  document.getElementById('newProjectBtn').addEventListener('click', () => {
+    openProjectModal(null); // null = create new
+  });
+
+  document.getElementById('editProjectBtn').addEventListener('click', () => {
+    if (currentProject) openProjectModal(currentProject);
+  });
+}
+
+// --- Cards API ---
+
 async function loadCards() {
   try {
-    const response = await apiFetch('/api/cards');
+    const response = await apiFetch(cardsBasePath());
     if (!response.ok) throw new Error('Failed to load cards');
     cards = await response.json();
     renderBoard();
@@ -54,7 +127,7 @@ async function loadCards() {
 
 async function createCard(status, title) {
   try {
-    const response = await apiFetch('/api/cards', {
+    const response = await apiFetch(cardsBasePath(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, status })
@@ -70,7 +143,7 @@ async function createCard(status, title) {
 
 async function updateCard(id, updates) {
   try {
-    const response = await apiFetch(`/api/cards/${id}`, {
+    const response = await apiFetch(`${cardsBasePath()}/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
@@ -89,7 +162,7 @@ async function updateCard(id, updates) {
 
 async function deleteCard(id) {
   try {
-    const response = await apiFetch(`/api/cards/${id}`, {
+    const response = await apiFetch(`${cardsBasePath()}/${id}`, {
       method: 'DELETE'
     });
     if (!response.ok) throw new Error('Failed to delete card');
@@ -102,7 +175,7 @@ async function deleteCard(id) {
 
 async function reorderCards(reorderData) {
   try {
-    const response = await apiFetch('/api/cards/reorder', {
+    const response = await apiFetch(`${cardsBasePath()}/reorder`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cards: reorderData })
@@ -114,14 +187,52 @@ async function reorderCards(reorderData) {
   }
 }
 
-// Rendering
-function renderBoard() {
-  const statuses = ['backlog', 'todo', 'in_progress', 'done'];
+// --- Rendering ---
 
-  statuses.forEach(status => {
-    const container = document.querySelector(`.cards-container[data-status="${status}"]`);
+function renderColumns() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  if (!currentProject) return;
+
+  currentProject.columns.forEach(col => {
+    const columnEl = document.createElement('div');
+    columnEl.className = 'column';
+    columnEl.dataset.status = col.key;
+
+    columnEl.innerHTML = `
+      <div class="column-header">
+        <h2>${escapeHtml(col.label)}</h2>
+        <span class="card-count">0</span>
+      </div>
+      <div class="cards-container" data-status="${col.key}"></div>
+      <button class="add-card-btn" data-status="${col.key}">Add card</button>
+    `;
+
+    // Add card button
+    const addBtn = columnEl.querySelector('.add-card-btn');
+    addBtn.addEventListener('click', (e) => {
+      showAddCardForm(col.key, e.target);
+    });
+
+    // Drag-and-drop on column
+    columnEl.addEventListener('dragover', handleDragOver);
+    columnEl.addEventListener('drop', handleDrop);
+    columnEl.addEventListener('dragleave', handleDragLeave);
+
+    board.appendChild(columnEl);
+  });
+}
+
+function renderBoard() {
+  if (!currentProject) return;
+
+  currentProject.columns.forEach(col => {
+    const container = document.querySelector(`.cards-container[data-status="${col.key}"]`);
+    if (!container) return;
+
     const columnCards = cards
-      .filter(card => card.status === status)
+      .filter(card => card.status === col.key)
       .sort((a, b) => a.position - b.position);
 
     container.innerHTML = '';
@@ -130,7 +241,7 @@ function renderBoard() {
       container.appendChild(cardEl);
     });
 
-    updateCardCount(status, columnCards.length);
+    updateCardCount(col.key, columnCards.length);
   });
 }
 
@@ -152,6 +263,16 @@ function createCardElement(card) {
     cardEl.appendChild(description);
   }
 
+  if (card.substatus) {
+    const badge = document.createElement('span');
+    badge.className = 'substatus-badge';
+    // Find the substatus label from the current project's columns
+    const col = currentProject.columns.find(c => c.key === card.status);
+    const sub = col && (col.substatuses || []).find(s => s.key === card.substatus);
+    badge.textContent = sub ? sub.label : card.substatus;
+    cardEl.appendChild(badge);
+  }
+
   cardEl.addEventListener('click', () => openCardModal(card));
   cardEl.addEventListener('dragstart', handleDragStart);
   cardEl.addEventListener('dragend', handleDragEnd);
@@ -161,23 +282,18 @@ function createCardElement(card) {
 
 function updateCardCount(status, count) {
   const column = document.querySelector(`.column[data-status="${status}"]`);
+  if (!column) return;
   const countEl = column.querySelector('.card-count');
   countEl.textContent = count;
 }
 
-// Add card form
-function setupEventListeners() {
-  const addButtons = document.querySelectorAll('.add-card-btn');
-  addButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const status = e.target.dataset.status;
-      showAddCardForm(status, e.target);
-    });
-  });
-
-  setupDragAndDrop();
-  setupModal();
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
+
+// --- Add card form ---
 
 function showAddCardForm(status, button) {
   const form = document.createElement('div');
@@ -228,15 +344,7 @@ function showAddCardForm(status, button) {
   input.focus();
 }
 
-// Drag and drop
-function setupDragAndDrop() {
-  const columns = document.querySelectorAll('.column');
-  columns.forEach(column => {
-    column.addEventListener('dragover', handleDragOver);
-    column.addEventListener('drop', handleDrop);
-    column.addEventListener('dragleave', handleDragLeave);
-  });
-}
+// --- Drag and drop ---
 
 function handleDragStart(e) {
   draggedCard = this;
@@ -246,7 +354,7 @@ function handleDragStart(e) {
   e.dataTransfer.setData('text/html', this.innerHTML);
 }
 
-function handleDragEnd(e) {
+function handleDragEnd() {
   this.classList.remove('dragging');
   document.querySelectorAll('.column').forEach(col => {
     col.classList.remove('drag-over');
@@ -262,7 +370,7 @@ function handleDragOver(e) {
   return false;
 }
 
-function handleDragLeave(e) {
+function handleDragLeave() {
   this.classList.remove('drag-over');
 }
 
@@ -322,26 +430,33 @@ async function handleReorderInColumn(status, cardId, e) {
   await reorderCards(reorderData);
 }
 
-// Modal
+// --- Card Modal ---
+
 function setupModal() {
   const modal = document.getElementById('cardModal');
   const closeBtn = document.getElementById('closeModal');
   const saveBtn = document.getElementById('saveCard');
   const deleteBtn = document.getElementById('deleteCard');
 
-  closeBtn.addEventListener('click', closeModal);
+  closeBtn.addEventListener('click', closeCardModal);
   saveBtn.addEventListener('click', saveCurrentCard);
   deleteBtn.addEventListener('click', deleteCurrentCard);
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
-      closeModal();
+      closeCardModal();
     }
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.style.display !== 'none') {
-      closeModal();
+    if (e.key === 'Escape') {
+      const cardModal = document.getElementById('cardModal');
+      const projectModal = document.getElementById('projectModal');
+      if (cardModal.style.display !== 'none') {
+        closeCardModal();
+      } else if (projectModal.style.display !== 'none') {
+        closeProjectModal();
+      }
     }
   });
 }
@@ -355,10 +470,30 @@ function openCardModal(card) {
   title.textContent = card.title;
   description.value = card.description || '';
 
+  // Substatus dropdown
+  const substatusContainer = document.getElementById('substatusContainer');
+  const col = currentProject.columns.find(c => c.key === card.status);
+  const subs = col && (col.substatuses || []);
+
+  if (subs && subs.length > 0) {
+    substatusContainer.style.display = 'block';
+    const select = document.getElementById('modalSubstatus');
+    select.innerHTML = '<option value="">None</option>';
+    for (const sub of subs) {
+      const opt = document.createElement('option');
+      opt.value = sub.key;
+      opt.textContent = sub.label;
+      if (card.substatus === sub.key) opt.selected = true;
+      select.appendChild(opt);
+    }
+  } else {
+    substatusContainer.style.display = 'none';
+  }
+
   modal.style.display = 'flex';
 }
 
-function closeModal() {
+function closeCardModal() {
   const modal = document.getElementById('cardModal');
   modal.style.display = 'none';
   currentCard = null;
@@ -375,8 +510,17 @@ async function saveCurrentCard() {
     return;
   }
 
-  await updateCard(currentCard.id, { title, description });
-  closeModal();
+  const updates = { title, description };
+
+  // Include substatus if the container is visible
+  const substatusContainer = document.getElementById('substatusContainer');
+  if (substatusContainer.style.display !== 'none') {
+    const substatus = document.getElementById('modalSubstatus').value || null;
+    updates.substatus = substatus;
+  }
+
+  await updateCard(currentCard.id, updates);
+  closeCardModal();
 }
 
 async function deleteCurrentCard() {
@@ -384,6 +528,318 @@ async function deleteCurrentCard() {
 
   if (confirm('Are you sure you want to delete this card?')) {
     await deleteCard(currentCard.id);
-    closeModal();
+    closeCardModal();
+  }
+}
+
+// --- Project Modal ---
+
+let editingProject = null; // null = creating new, object = editing existing
+
+function setupProjectModal() {
+  const modal = document.getElementById('projectModal');
+  const closeBtn = document.getElementById('closeProjectModal');
+  const saveBtn = document.getElementById('saveProject');
+  const deleteBtn = document.getElementById('deleteProject');
+  const addColBtn = document.getElementById('addColumnBtn');
+
+  closeBtn.addEventListener('click', closeProjectModal);
+  saveBtn.addEventListener('click', saveProjectSettings);
+  deleteBtn.addEventListener('click', deleteCurrentProject);
+  addColBtn.addEventListener('click', addColumnRow);
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeProjectModal();
+    }
+  });
+}
+
+function openProjectModal(project) {
+  editingProject = project;
+  const modal = document.getElementById('projectModal');
+  const titleEl = document.getElementById('projectModalTitle');
+  const nameInput = document.getElementById('projectName');
+  const deleteBtn = document.getElementById('deleteProject');
+
+  if (project) {
+    titleEl.textContent = 'Project Settings';
+    nameInput.value = project.name;
+    deleteBtn.style.display = 'block';
+    renderColumnsEditor(project.columns);
+  } else {
+    titleEl.textContent = 'New Project';
+    nameInput.value = '';
+    deleteBtn.style.display = 'none';
+    renderColumnsEditor([
+      { key: 'backlog', label: 'Backlog', substatuses: [] },
+      { key: 'todo', label: 'To Do', substatuses: [] },
+      { key: 'in_progress', label: 'In Progress', substatuses: [] },
+      { key: 'blocked', label: 'Blocked', substatuses: [
+        { key: 'human_review', label: 'Human Review' },
+        { key: 'agent_review', label: 'Agent Review' },
+      ]},
+      { key: 'done', label: 'Done', substatuses: [] },
+    ]);
+  }
+
+  modal.style.display = 'flex';
+  nameInput.focus();
+}
+
+function closeProjectModal() {
+  const modal = document.getElementById('projectModal');
+  modal.style.display = 'none';
+  editingProject = null;
+}
+
+function renderColumnsEditor(columns) {
+  const editor = document.getElementById('columnsEditor');
+  editor.innerHTML = '';
+  columns.forEach(col => {
+    addColumnRowWith(col.key, col.label, col.substatuses || []);
+  });
+}
+
+function addColumnRow() {
+  addColumnRowWith('', '', []);
+}
+
+let draggedWrapper = null;
+
+function addColumnRowWith(key, label, substatuses) {
+  const editor = document.getElementById('columnsEditor');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'column-editor-wrapper';
+  wrapper.draggable = true;
+
+  const row = document.createElement('div');
+  row.className = 'column-editor-row';
+  row.innerHTML = `
+    <span class="drag-handle">&#8942;&#8942;</span>
+    <input type="text" class="col-key-input" placeholder="key" value="${escapeHtml(key)}" />
+    <input type="text" class="col-label-input" placeholder="Label" value="${escapeHtml(label)}" />
+    <button class="substatus-toggle-btn" title="Sub-statuses">${substatuses.length > 0 ? `(${substatuses.length})` : '+'}</button>
+    <button class="remove-col-btn" title="Remove column">&times;</button>
+  `;
+
+  const subEditor = document.createElement('div');
+  subEditor.className = 'substatus-editor';
+  subEditor.style.display = substatuses.length > 0 ? 'block' : 'none';
+
+  // Add existing substatuses
+  for (const sub of substatuses) {
+    addSubstatusRow(subEditor, sub.key, sub.label);
+  }
+
+  // Add substatus button
+  const addSubBtn = document.createElement('button');
+  addSubBtn.className = 'add-substatus-btn';
+  addSubBtn.textContent = '+ Add sub-status';
+  addSubBtn.addEventListener('click', () => addSubstatusRow(subEditor, '', ''));
+  subEditor.appendChild(addSubBtn);
+
+  // Toggle button
+  const toggleBtn = row.querySelector('.substatus-toggle-btn');
+  toggleBtn.addEventListener('click', () => {
+    const visible = subEditor.style.display !== 'none';
+    subEditor.style.display = visible ? 'none' : 'block';
+  });
+
+  const removeBtn = row.querySelector('.remove-col-btn');
+  removeBtn.addEventListener('click', () => wrapper.remove());
+
+  // Auto-generate key from label
+  const labelInput = row.querySelector('.col-label-input');
+  const keyInput = row.querySelector('.col-key-input');
+  labelInput.addEventListener('input', () => {
+    if (!keyInput.dataset.edited) {
+      keyInput.value = labelInput.value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+    }
+  });
+  keyInput.addEventListener('input', () => {
+    keyInput.dataset.edited = 'true';
+  });
+  if (key) keyInput.dataset.edited = 'true';
+
+  // Drag-and-drop reordering
+  const handle = row.querySelector('.drag-handle');
+  handle.addEventListener('mousedown', () => { wrapper.dataset.handleHeld = 'true'; });
+  document.addEventListener('mouseup', () => { delete wrapper.dataset.handleHeld; });
+
+  wrapper.addEventListener('dragstart', (e) => {
+    if (!wrapper.dataset.handleHeld) { e.preventDefault(); return; }
+    draggedWrapper = wrapper;
+    wrapper.classList.add('dragging-column');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  wrapper.addEventListener('dragend', () => {
+    wrapper.classList.remove('dragging-column');
+    draggedWrapper = null;
+    editor.querySelectorAll('.column-editor-wrapper').forEach(w => w.classList.remove('drag-over-column'));
+  });
+  wrapper.addEventListener('dragover', (e) => {
+    if (!draggedWrapper || draggedWrapper === wrapper) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    editor.querySelectorAll('.column-editor-wrapper').forEach(w => w.classList.remove('drag-over-column'));
+    wrapper.classList.add('drag-over-column');
+  });
+  wrapper.addEventListener('dragleave', () => {
+    wrapper.classList.remove('drag-over-column');
+  });
+  wrapper.addEventListener('drop', (e) => {
+    e.preventDefault();
+    wrapper.classList.remove('drag-over-column');
+    if (!draggedWrapper || draggedWrapper === wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      editor.insertBefore(draggedWrapper, wrapper);
+    } else {
+      editor.insertBefore(draggedWrapper, wrapper.nextSibling);
+    }
+  });
+
+  wrapper.appendChild(row);
+  wrapper.appendChild(subEditor);
+  editor.appendChild(wrapper);
+}
+
+function addSubstatusRow(container, key, label) {
+  const row = document.createElement('div');
+  row.className = 'substatus-row';
+  row.innerHTML = `
+    <input type="text" class="sub-key-input" placeholder="key" value="${escapeHtml(key)}" />
+    <input type="text" class="sub-label-input" placeholder="Label" value="${escapeHtml(label)}" />
+    <button class="remove-sub-btn" title="Remove">&times;</button>
+  `;
+
+  const removeBtn = row.querySelector('.remove-sub-btn');
+  removeBtn.addEventListener('click', () => row.remove());
+
+  // Auto-generate key from label
+  const labelInput = row.querySelector('.sub-label-input');
+  const keyInput = row.querySelector('.sub-key-input');
+  labelInput.addEventListener('input', () => {
+    if (!keyInput.dataset.edited) {
+      keyInput.value = labelInput.value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+    }
+  });
+  keyInput.addEventListener('input', () => {
+    keyInput.dataset.edited = 'true';
+  });
+  if (key) keyInput.dataset.edited = 'true';
+
+  // Insert before the "Add sub-status" button
+  const addBtn = container.querySelector('.add-substatus-btn');
+  container.insertBefore(row, addBtn);
+}
+
+function getColumnsFromEditor() {
+  const wrappers = document.querySelectorAll('#columnsEditor .column-editor-wrapper');
+  const columns = [];
+  for (const wrapper of wrappers) {
+    const row = wrapper.querySelector('.column-editor-row');
+    const key = row.querySelector('.col-key-input').value.trim();
+    const label = row.querySelector('.col-label-input').value.trim();
+    if (key && label) {
+      const subRows = wrapper.querySelectorAll('.substatus-row');
+      const substatuses = [];
+      for (const subRow of subRows) {
+        const subKey = subRow.querySelector('.sub-key-input').value.trim();
+        const subLabel = subRow.querySelector('.sub-label-input').value.trim();
+        if (subKey && subLabel) {
+          substatuses.push({ key: subKey, label: subLabel });
+        }
+      }
+      columns.push({ key, label, substatuses });
+    }
+  }
+  return columns;
+}
+
+async function saveProjectSettings() {
+  const name = document.getElementById('projectName').value.trim();
+  if (!name) {
+    alert('Project name is required');
+    return;
+  }
+
+  const columns = getColumnsFromEditor();
+  if (columns.length === 0) {
+    alert('At least one column is required');
+    return;
+  }
+
+  try {
+    if (editingProject) {
+      // Update existing
+      const response = await apiFetch(`/api/projects/${editingProject.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, columns })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        alert(err.error || 'Failed to update project');
+        return;
+      }
+      const updated = await response.json();
+      const idx = projects.findIndex(p => p.id === updated.id);
+      if (idx !== -1) projects[idx] = updated;
+      renderProjectSelector();
+      selectProject(updated);
+    } else {
+      // Create new
+      const response = await apiFetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, columns })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        alert(err.error || 'Failed to create project');
+        return;
+      }
+      const created = await response.json();
+      projects.push(created);
+      renderProjectSelector();
+      selectProject(created);
+    }
+    closeProjectModal();
+  } catch (error) {
+    console.error('Error saving project:', error);
+    alert('Failed to save project');
+  }
+}
+
+async function deleteCurrentProject() {
+  if (!editingProject) return;
+
+  if (!confirm(`Delete project "${editingProject.name}"? This cannot be undone.`)) return;
+
+  try {
+    const response = await apiFetch(`/api/projects/${editingProject.id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      alert(err.error || 'Failed to delete project');
+      return;
+    }
+    projects = projects.filter(p => p.id !== editingProject.id);
+    renderProjectSelector();
+    selectProject(projects[0]);
+    closeProjectModal();
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    alert('Failed to delete project');
   }
 }

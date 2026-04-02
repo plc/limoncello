@@ -10,13 +10,83 @@ body {
   color: #eee;
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Header */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background-color: #0f1629;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-select {
+  background-color: #16213e;
+  color: #fff;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  min-width: 180px;
+}
+
+.project-select:focus {
+  border-color: #4a90e2;
+}
+
+.project-select option {
+  background-color: #16213e;
+  color: #fff;
+}
+
+.header-btn {
+  background-color: #16213e;
+  color: #a8b2d1;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+  background-color: #0f3460;
+  color: #fff;
+  border-color: #4a90e2;
+}
+
+.header-left, .header-right {
+  min-width: 80px;
+}
+
+/* Board */
 
 .board {
   display: flex;
   gap: 16px;
   padding: 20px;
-  height: 100vh;
+  flex: 1;
   overflow-x: auto;
 }
 
@@ -28,7 +98,7 @@ body {
   min-width: 280px;
   max-width: 280px;
   padding: 12px;
-  height: calc(100vh - 40px);
+  height: 100%;
 }
 
 .column-header {
@@ -193,6 +263,8 @@ body {
   background-color: #16213e;
 }
 
+/* Modals */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -232,6 +304,12 @@ body {
   align-items: flex-start;
   padding: 20px;
   border-bottom: 1px solid #0f3460;
+}
+
+.modal-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
 }
 
 .editable-title {
@@ -302,6 +380,23 @@ body {
   border-color: #4a90e2;
 }
 
+.text-input {
+  width: 100%;
+  background-color: #0f3460;
+  color: #fff;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.text-input:focus {
+  border-color: #4a90e2;
+}
+
 .modal-footer {
   display: flex;
   justify-content: space-between;
@@ -335,4 +430,200 @@ body {
 
 .save-btn:hover {
   background-color: #357abd;
+}
+
+/* Columns editor (project settings modal) */
+
+.columns-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.column-editor-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.column-editor-row input {
+  background-color: #0f3460;
+  color: #fff;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.column-editor-row input:focus {
+  border-color: #4a90e2;
+}
+
+.column-editor-row .col-key-input {
+  width: 120px;
+  font-family: monospace;
+}
+
+.column-editor-row .col-label-input {
+  flex: 1;
+}
+
+.column-editor-row .remove-col-btn {
+  background: transparent;
+  border: none;
+  color: #a8b2d1;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.column-editor-row .remove-col-btn:hover {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.column-editor-row .drag-handle {
+  color: #a8b2d1;
+  cursor: grab;
+  padding: 4px;
+  font-size: 14px;
+  user-select: none;
+}
+
+.add-column-btn {
+  background-color: transparent;
+  color: #a8b2d1;
+  border: 1px dashed #0f3460;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.add-column-btn:hover {
+  background-color: #0f3460;
+  color: #fff;
+  border-color: #4a90e2;
+}
+
+/* Substatus badge on cards */
+.substatus-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  background-color: #e67e22;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Substatus editor in project modal */
+.column-editor-wrapper {
+  margin-bottom: 4px;
+}
+
+.column-editor-wrapper.dragging-column {
+  opacity: 0.4;
+}
+
+.column-editor-wrapper.drag-over-column {
+  border-top: 2px solid #4a90e2;
+}
+
+.substatus-editor {
+  margin-left: 32px;
+  padding: 6px 0 6px 12px;
+  border-left: 2px solid #0f3460;
+}
+
+.substatus-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.substatus-row input {
+  background-color: #0f3460;
+  color: #fff;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.substatus-row input:focus {
+  border-color: #4a90e2;
+}
+
+.substatus-row .sub-key-input {
+  width: 100px;
+  font-family: monospace;
+}
+
+.substatus-row .sub-label-input {
+  flex: 1;
+}
+
+.substatus-row .remove-sub-btn {
+  background: transparent;
+  border: none;
+  color: #a8b2d1;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.substatus-row .remove-sub-btn:hover {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.substatus-toggle-btn {
+  background: transparent;
+  border: 1px solid #0f3460;
+  color: #a8b2d1;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 32px;
+}
+
+.substatus-toggle-btn:hover {
+  background-color: #0f3460;
+  color: #fff;
+  border-color: #4a90e2;
+}
+
+.add-substatus-btn {
+  background-color: transparent;
+  color: #a8b2d1;
+  border: 1px dashed #0f3460;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.add-substatus-btn:hover {
+  background-color: #0f3460;
+  color: #fff;
+  border-color: #4a90e2;
 }

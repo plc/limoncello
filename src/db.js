@@ -10,6 +10,7 @@
 
 const path = require('path');
 const Database = require('better-sqlite3');
+const { projectId } = require('./lib/ids');
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'prello.db');
 const db = new Database(dbPath);
@@ -18,24 +19,126 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+const DEFAULT_COLUMNS = JSON.stringify([
+  { key: 'backlog', label: 'Backlog', substatuses: [] },
+  { key: 'todo', label: 'To Do', substatuses: [] },
+  { key: 'in_progress', label: 'In Progress', substatuses: [] },
+  { key: 'blocked', label: 'Blocked', substatuses: [
+    { key: 'human_review', label: 'Human Review' },
+    { key: 'agent_review', label: 'Agent Review' },
+  ]},
+  { key: 'done', label: 'Done', substatuses: [] },
+]);
+
 /**
  * Create all tables and indexes. Safe to call on every startup.
+ * Handles migration from v1 (no projects) to v2 (with projects).
  */
 function initSchema() {
+  // Create projects table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS cards (
+    CREATE TABLE IF NOT EXISTS projects (
       id         TEXT PRIMARY KEY,
-      title      TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      status     TEXT NOT NULL DEFAULT 'backlog'
-                   CHECK (status IN ('backlog', 'todo', 'in_progress', 'done')),
-      position   INTEGER NOT NULL DEFAULT 0,
+      name       TEXT NOT NULL,
+      columns    TEXT NOT NULL DEFAULT '${DEFAULT_COLUMNS.replace(/'/g, "''")}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-
-    CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status, position);
   `);
+
+  // Check if cards table needs migration (has CHECK constraint / no project_id)
+  const tableInfo = db.prepare("PRAGMA table_info(cards)").all();
+  const hasProjectId = tableInfo.some(col => col.name === 'project_id');
+
+  if (tableInfo.length > 0 && !hasProjectId) {
+    // Migration: existing cards table without project_id
+    migrate_v1_to_v2();
+  } else if (tableInfo.length === 0) {
+    // Fresh install: create cards table with project_id
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cards (
+        id         TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        title      TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        status     TEXT NOT NULL DEFAULT 'backlog',
+        substatus  TEXT DEFAULT NULL,
+        position   INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_cards_project_status ON cards(project_id, status, position);
+    `);
+
+    // Create default project if none exist
+    ensureDefaultProject();
+  }
+
+  // Migration: Add substatus column if it doesn't exist
+  const currentTableInfo = db.prepare("PRAGMA table_info(cards)").all();
+  const hasSubstatus = currentTableInfo.some(col => col.name === 'substatus');
+  if (!hasSubstatus && currentTableInfo.length > 0) {
+    db.exec('ALTER TABLE cards ADD COLUMN substatus TEXT DEFAULT NULL');
+    console.log('Added substatus column to cards table');
+  }
 }
 
-module.exports = { db, initSchema };
+/**
+ * Migrate v1 cards table (no project_id, CHECK constraint) to v2.
+ */
+function migrate_v1_to_v2() {
+  const defaultId = ensureDefaultProject();
+
+  db.exec(`
+    -- Rename old table
+    ALTER TABLE cards RENAME TO cards_v1;
+
+    -- Create new table without CHECK, with project_id
+    CREATE TABLE cards (
+      id         TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      title      TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      status     TEXT NOT NULL DEFAULT 'backlog',
+      substatus  TEXT DEFAULT NULL,
+      position   INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id)
+    );
+
+    -- Copy data, assigning all to default project
+    INSERT INTO cards (id, project_id, title, description, status, substatus, position, created_at, updated_at)
+    SELECT id, '${defaultId}', title, description, status, NULL, position, created_at, updated_at
+    FROM cards_v1;
+
+    -- Drop old table and index
+    DROP TABLE cards_v1;
+
+    -- Create new index
+    CREATE INDEX IF NOT EXISTS idx_cards_project_status ON cards(project_id, status, position);
+  `);
+
+  console.log(`Migration complete: assigned ${db.prepare('SELECT count(*) as n FROM cards').get().n} cards to Default project (${defaultId})`);
+}
+
+/**
+ * Ensure a Default project exists. Returns its ID.
+ */
+function ensureDefaultProject() {
+  const existing = db.prepare('SELECT id FROM projects LIMIT 1').get();
+  if (existing) return existing.id;
+
+  const id = projectId();
+  db.prepare(`
+    INSERT INTO projects (id, name, columns, created_at, updated_at)
+    VALUES (?, 'Default', ?, datetime('now'), datetime('now'))
+  `).run(id, DEFAULT_COLUMNS);
+
+  console.log(`Created Default project: ${id}`);
+  return id;
+}
+
+module.exports = { db, initSchema, DEFAULT_COLUMNS };

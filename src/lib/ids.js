@@ -10,5 +10,6 @@ const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 const shortId = customAlphabet(alphabet, 12);
 
 const cardId = () => `crd_${shortId()}`;
+const projectId = () => `prj_${shortId()}`;
 
-module.exports = { cardId };
+module.exports = { cardId, projectId };

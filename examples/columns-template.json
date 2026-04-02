@@ -1,0 +1,13 @@
+{
+  "name": "My Project",
+  "columns": [
+    {"key": "backlog", "label": "Backlog", "substatuses": []},
+    {"key": "todo", "label": "To Do", "substatuses": []},
+    {"key": "in_progress", "label": "In Progress", "substatuses": []},
+    {"key": "blocked", "label": "Blocked", "substatuses": [
+      {"key": "human_review", "label": "Human Review"},
+      {"key": "agent_review", "label": "Agent Review"}
+    ]},
+    {"key": "done", "label": "Done", "substatuses": []}
+  ]
+}

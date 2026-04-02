@@ -3,9 +3,10 @@
  *
  * Entry point. Sets up Express server with:
  * - SQLite schema initialization on startup
- * - Card API routes
+ * - Project and Card API routes
  * - Static file serving for web UI
  * - Health check endpoints
+ * - MCP server via Streamable HTTP transport at /mcp
  *
  * Environment variables:
  * - PORT: Server port (default: 3654)
@@ -13,10 +14,12 @@
  * - PRELLO_API_KEY: Bearer token for API auth (optional; if unset, no auth required)
  */
 
+const crypto = require('node:crypto');
 const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
-const { initSchema } = require('./db');
+const { db, initSchema } = require('./db');
+const projectsRouter = require('./routes/projects');
 const cardsRouter = require('./routes/cards');
 
 const app = express();
@@ -34,7 +37,7 @@ app.use(helmet({
 }));
 app.use(express.json());
 
-// Auth middleware -- if PRELLO_API_KEY is set, require Bearer token on /api/* routes
+// Auth middleware -- if PRELLO_API_KEY is set, require Bearer token on /api/* and /mcp routes
 const apiKey = process.env.PRELLO_API_KEY;
 function requireAuth(req, res, next) {
   if (!apiKey) return next();
@@ -46,7 +49,6 @@ function requireAuth(req, res, next) {
 }
 
 // Static files (web UI) -- served before auth so the board is accessible
-// The UI reads the API key from a meta tag injected at serve time
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Health checks (no auth)
@@ -54,8 +56,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Card API (auth required if PRELLO_API_KEY is set)
-app.use('/api/cards', requireAuth, cardsRouter);
+// Project API (auth required if PRELLO_API_KEY is set)
+app.use('/api/projects', requireAuth, projectsRouter);
+
+// Card API -- project-scoped
+app.use('/api/projects/:projectId/cards', requireAuth, cardsRouter);
+
+// Backward-compat shim: /api/cards routes to the first (Default) project
+app.use('/api/cards', requireAuth, (req, res, next) => {
+  const defaultProject = db.prepare('SELECT id FROM projects ORDER BY created_at LIMIT 1').get();
+  if (!defaultProject) {
+    return res.status(404).json({ error: 'No projects exist' });
+  }
+  req._defaultProjectId = defaultProject.id;
+  next();
+}, cardsRouter);
 
 // 404 catch-all for API routes
 app.use('/api', (req, res) => {
@@ -68,10 +83,88 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Startup
-initSchema();
-console.log('Database schema initialized');
+// Startup (async to allow dynamic ESM imports for MCP)
+async function start() {
+  initSchema();
+  console.log('Database schema initialized');
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Prello running on http://localhost:${port}`);
+  // Load ESM modules for MCP Streamable HTTP transport
+  const { StreamableHTTPServerTransport } = await import(
+    '@modelcontextprotocol/sdk/server/streamableHttp.js'
+  );
+  const { createPrelloMcpServer } = await import('./mcp-tools.mjs');
+
+  // Session management: sessionId -> { transport, server }
+  const sessions = new Map();
+
+  function isInitializeRequest(body) {
+    if (Array.isArray(body)) {
+      return body.some(msg => msg.method === 'initialize');
+    }
+    return body && body.method === 'initialize';
+  }
+
+  // MCP Streamable HTTP endpoint
+  app.all('/mcp', requireAuth, async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'];
+
+    // Route to existing session
+    if (sessionId && sessions.has(sessionId)) {
+      const session = sessions.get(sessionId);
+      await session.transport.handleRequest(req, res, req.body);
+      return;
+    }
+
+    // New session: POST with initialize request and no session ID
+    if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => crypto.randomUUID(),
+        onsessioninitialized: (id) => {
+          sessions.set(id, { transport, server });
+        },
+        onsessionclosed: (id) => {
+          sessions.delete(id);
+        },
+      });
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          sessions.delete(transport.sessionId);
+        }
+      };
+
+      const mcpBaseUrl = `http://localhost:${port}`;
+      const server = createPrelloMcpServer(mcpBaseUrl, apiKey || '');
+      await server.connect(transport);
+
+      await transport.handleRequest(req, res, req.body);
+      return;
+    }
+
+    // Invalid session ID
+    if (sessionId) {
+      res.status(404).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Session not found' },
+        id: null,
+      });
+      return;
+    }
+
+    // POST without session ID and not an initialize request
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'Bad request: missing session ID' },
+      id: null,
+    });
+  });
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Prello running on http://localhost:${port}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Failed to start Prello:', err);
+  process.exit(1);
 });
