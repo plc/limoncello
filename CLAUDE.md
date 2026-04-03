@@ -13,7 +13,7 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 ## Deployment
 
 - **Local**: `npm run dev` -- board at http://localhost:3654
-- **Production**: https://prello.fly.dev (Fly.io, SQLite on persistent volume)
+- **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume)
 - **Auth**: Bearer token via `LIMONCELLO_API_KEY` env var. Required on Fly.io, optional locally.
 
 ## Key Architecture
@@ -95,7 +95,7 @@ curl -X POST http://127.0.0.1:3654/api/cards \
   -d '{"title": "Needs review", "status": "blocked", "substatus": "human_review"}'
 
 # Create a card in specific project (production, with auth)
-curl -X POST https://prello.fly.dev/api/projects/prj_abc123/cards \
+curl -X POST https://limoncello.fly.dev/api/projects/prj_abc123/cards \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $LIMONCELLO_API_KEY" \
   -d '{"title": "Test card", "status": "todo"}'
@@ -116,7 +116,7 @@ No local process needed. Claude Code connects directly to the deployed server:
 ```bash
 claude mcp add limoncello -s user --transport http \
   --header "Authorization: Bearer <your-api-key>" \
-  -- https://prello.fly.dev/mcp
+  -- https://limoncello.fly.dev/mcp
 ```
 
 ### Local (STDIO)
@@ -130,7 +130,7 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
       "command": "node",
       "args": ["/Users/plc/Documents/limoncello/src/mcp.mjs"],
       "env": {
-        "LIMONCELLO_URL": "https://prello.fly.dev",
+        "LIMONCELLO_URL": "https://limoncello.fly.dev",
         "LIMONCELLO_API_KEY": "<your-api-key>"
       }
     }
@@ -223,7 +223,7 @@ Columns can define sub-statuses. Default columns include `blocked` with sub-stat
 
 ## Gotchas
 
-- **Fly.io SSH tests unreliable**: The machine has `auto_stop_machines = 'stop'` in `fly.toml`, so `fly ssh console` often fails with "Connection refused" because the machine is stopped. Don't waste time debugging SSH -- test via the public URL (`https://prello.fly.dev/...`) instead.
+- **Fly.io SSH tests unreliable**: The machine has `auto_stop_machines = 'stop'` in `fly.toml`, so `fly ssh console` often fails with "Connection refused" because the machine is stopped. Don't waste time debugging SSH -- test via the public URL (`https://limoncello.fly.dev/...`) instead.
 - **API key format**: `LIMONCELLO_API_KEY` must not resemble a third-party credential. The server rejects keys matching Stripe patterns (`sk_live_*`, `sk_test_*`, `pk_*`, `rk_*`) on startup. Use a dedicated random string (e.g., `openssl rand -base64 32`).
 
 ## Git Workflow

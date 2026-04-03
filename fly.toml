@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for prello on 2026-04-02T10:57:33-06:00
+# fly.toml app configuration file for limoncello
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'prello'
+app = 'limoncello'
 primary_region = 'sjc'
 
 [build]
@@ -12,7 +12,7 @@ primary_region = 'sjc'
   PORT = '3654'
 
 [mounts]
-  source = 'prello_data'
+  source = 'limoncello_data'
   destination = '/app/data'
 
 [http_service]

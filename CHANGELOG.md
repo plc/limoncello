@@ -10,7 +10,7 @@
 - Default database path changed: `data/prello.db` -> `data/limoncello.db`
 - localStorage keys renamed: `prello_*` -> `limoncello_*`
 - Board project renamed: "Prello Development" -> "Limoncello Development"
-- Note: `fly.toml` and `prello.fly.dev` deployment URL unchanged (requires manual migration)
+- Fly.io app migrated from `prello` to `limoncello` (now at `limoncello.fly.dev`)
 
 ## 2026-04-02 (v11)
 
@@ -130,7 +130,7 @@
 - Bearer token auth via `LIMONCELLO_API_KEY` env var (optional; if unset, no auth)
 - Web UI prompts for API key on 401 and stores in localStorage
 - MCP server (`src/mcp.mjs`) with tools: `limoncello_add`, `limoncello_list`, `limoncello_move`, `limoncello_board`
-- Deployed to Fly.io at https://prello.fly.dev with persistent SQLite volume
+- Deployed to Fly.io at https://limoncello.fly.dev with persistent SQLite volume
 
 ## 2026-04-02
 

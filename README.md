@@ -35,7 +35,7 @@ Connect Claude Code directly to a deployed Limoncello instance. No local process
 ```bash
 claude mcp add limoncello -s user --transport http \
   --header "Authorization: Bearer <your-api-key>" \
-  -- https://prello.fly.dev/mcp
+  -- https://limoncello.fly.dev/mcp
 ```
 
 The `/mcp` endpoint supports the MCP Streamable HTTP transport with stateful sessions. Auth uses the same `LIMONCELLO_API_KEY` bearer token as the REST API.
@@ -51,7 +51,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`) or Claude Code 
       "command": "node",
       "args": ["/path/to/limoncello/src/mcp.mjs"],
       "env": {
-        "LIMONCELLO_URL": "https://prello.fly.dev",
+        "LIMONCELLO_URL": "https://limoncello.fly.dev",
         "LIMONCELLO_API_KEY": "your-api-key"
       }
     }
@@ -125,7 +125,7 @@ For backward compatibility, `/api/cards` routes to the Default project:
 
 ## Deployment
 
-Deployed at https://prello.fly.dev
+Deployed at https://limoncello.fly.dev
 
 ```bash
 fly deploy

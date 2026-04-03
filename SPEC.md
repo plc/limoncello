@@ -214,7 +214,7 @@ For backward compatibility, `/api/cards` routes to the Default project:
 
 Two transports are supported:
 
-- **Streamable HTTP**: `/mcp` endpoint in `src/index.js` -- for remote connections (e.g. Claude Code connecting to `https://prello.fly.dev/mcp`). Stateful sessions with `Mcp-Session-Id` header. Auth via same `LIMONCELLO_API_KEY` bearer token. MCP tools call the API on `localhost` within the same process.
+- **Streamable HTTP**: `/mcp` endpoint in `src/index.js` -- for remote connections (e.g. Claude Code connecting to `https://limoncello.fly.dev/mcp`). Stateful sessions with `Mcp-Session-Id` header. Auth via same `LIMONCELLO_API_KEY` bearer token. MCP tools call the API on `localhost` within the same process.
 - **STDIO**: `src/mcp.mjs` -- for local subprocess use (Claude Desktop, Claude Code local config). Configured via `LIMONCELLO_URL` and `LIMONCELLO_API_KEY` env vars. Calls the REST API over HTTP.
 
 Shared tool definitions live in `src/mcp-tools.mjs`.
@@ -250,7 +250,7 @@ All card commands accept an optional `--project <project-id>` parameter. If omit
 ## 9. Deployment
 
 - **Local**: `npm run dev` at http://localhost:3654
-- **Production**: https://prello.fly.dev (Fly.io, SQLite on persistent volume, `LIMONCELLO_API_KEY` required)
+- **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume, `LIMONCELLO_API_KEY` required)
 
 ## 10. Project Structure
 
