@@ -130,9 +130,10 @@ app.get('/api/man', manHandler);
 
 // Key bootstrapping: POST is unauthenticated (rate-limited inside router)
 // GET and DELETE require admin
-app.post('/api/keys', keysRouter);
-app.get('/api/keys', requireAdmin, keysRouter);
-app.delete('/api/keys/:id', requireAdmin, keysRouter);
+app.use('/api/keys', (req, res, next) => {
+  if (req.method === 'POST') return next(); // unauthenticated
+  return requireAdmin(req, res, next);       // admin-only for GET/DELETE
+}, keysRouter);
 
 // Project API (auth required if any auth is configured)
 app.use('/api/projects', requireAuth, projectsRouter);
