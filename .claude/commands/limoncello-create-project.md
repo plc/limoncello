@@ -1,11 +1,11 @@
-# Prello Create Project
+# Limoncello Create Project
 
-Create a new Prello project, optionally loading column definitions from a JSON file.
+Create a new Limoncello project, optionally loading column definitions from a JSON file.
 
 ## Usage
 
 ```
-/prello-create-project "Project Name" [--file <path-to-json>]
+/limoncello-create-project "Project Name" [--file <path-to-json>]
 ```
 
 ## Arguments

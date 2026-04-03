@@ -1,11 +1,11 @@
-# Prello Board Overview
+# Limoncello Board Overview
 
-Show a summary overview of the Prello Kanban board.
+Show a summary overview of the Limoncello Kanban board.
 
 ## Usage
 
 ```
-/prello-board [--project <project-id>]
+/limoncello-board [--project <project-id>]
 ```
 
 ## Arguments
@@ -58,7 +58,7 @@ Display a board overview with:
    ```
    BOARD SUMMARY
    =============
-   The board is empty. Use /prello-add to create your first card.
+   The board is empty. Use /limoncello-add to create your first card.
    ```
 
 Format the output to be compact and easy to scan visually. Use formatting like headers, separators, and indentation to make the board structure clear.

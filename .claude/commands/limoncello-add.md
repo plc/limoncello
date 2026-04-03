@@ -1,11 +1,11 @@
-# Prello Add Card
+# Limoncello Add Card
 
-Create a new card on the Prello Kanban board.
+Create a new card on the Limoncello Kanban board.
 
 ## Usage
 
 ```
-/prello-add "Card title" [--status <status>] [--substatus <substatus>] [--description "Description text"] [--project <project-id>]
+/limoncello-add "Card title" [--status <status>] [--substatus <substatus>] [--description "Description text"] [--project <project-id>]
 ```
 
 ## Arguments

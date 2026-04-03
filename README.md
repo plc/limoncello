@@ -1,4 +1,4 @@
-# Prello
+# Limoncello
 
 A local-first Kanban board for human-AI collaboration. Humans manage cards via a web UI, Claude manages them via MCP tools or slash commands. Both share the same board.
 
@@ -21,7 +21,7 @@ Open http://localhost:3654 in your browser.
 - Project management: create projects, define custom columns, switch between projects
 - MCP server for Claude Desktop and Claude Code integration
 - Slash commands for Claude Code
-- SQLite database -- zero configuration, data persists in `./data/prello.db`
+- SQLite database -- zero configuration, data persists in `./data/limoncello.db`
 - Deployable to Fly.io with persistent volume and bearer token auth
 
 ## MCP Server (Claude Desktop / Claude Code)
@@ -30,15 +30,15 @@ The MCP server lets Claude create, list, move, and view cards as part of its wor
 
 ### Remote (Streamable HTTP -- recommended)
 
-Connect Claude Code directly to a deployed Prello instance. No local process needed:
+Connect Claude Code directly to a deployed Limoncello instance. No local process needed:
 
 ```bash
-claude mcp add prello -s user --transport http \
+claude mcp add limoncello -s user --transport http \
   --header "Authorization: Bearer <your-api-key>" \
   -- https://prello.fly.dev/mcp
 ```
 
-The `/mcp` endpoint supports the MCP Streamable HTTP transport with stateful sessions. Auth uses the same `PRELLO_API_KEY` bearer token as the REST API.
+The `/mcp` endpoint supports the MCP Streamable HTTP transport with stateful sessions. Auth uses the same `LIMONCELLO_API_KEY` bearer token as the REST API.
 
 ### Local (STDIO)
 
@@ -47,46 +47,46 @@ Add to your Claude Desktop config (`claude_desktop_config.json`) or Claude Code 
 ```json
 {
   "mcpServers": {
-    "prello": {
+    "limoncello": {
       "command": "node",
-      "args": ["/path/to/prello/src/mcp.mjs"],
+      "args": ["/path/to/limoncello/src/mcp.mjs"],
       "env": {
-        "PRELLO_URL": "https://prello.fly.dev",
-        "PRELLO_API_KEY": "your-api-key"
+        "LIMONCELLO_URL": "https://prello.fly.dev",
+        "LIMONCELLO_API_KEY": "your-api-key"
       }
     }
   }
 }
 ```
 
-For local use without auth, set `PRELLO_URL` to `http://localhost:3654` and omit `PRELLO_API_KEY`.
+For local use without auth, set `LIMONCELLO_URL` to `http://localhost:3654` and omit `LIMONCELLO_API_KEY`.
 
 ### Tools
 
-`prello_projects`, `prello_create_project`, `prello_add`, `prello_list`, `prello_move`, `prello_board`
+`limoncello_projects`, `limoncello_create_project`, `limoncello_add`, `limoncello_list`, `limoncello_move`, `limoncello_board`
 
-The `prello_create_project` tool accepts an optional `columns_file` parameter -- a path to a JSON file defining the project's name and columns. See `examples/columns-template.json` for the format.
+The `limoncello_create_project` tool accepts an optional `columns_file` parameter -- a path to a JSON file defining the project's name and columns. See `examples/columns-template.json` for the format.
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
 ## Slash Commands (Claude Code)
 
-With the Prello server running, use these slash commands in Claude Code:
+With the Limoncello server running, use these slash commands in Claude Code:
 
 | Command | Description |
 |---------|-------------|
-| `/prello-projects` | List all projects |
-| `/prello-create-project "name" [--file <path>]` | Create a project (optionally from a JSON file) |
-| `/prello-add "title" [--status todo] [--substatus key] [--description "..."] [--project <id>]` | Create a card |
-| `/prello-list [--status in_progress] [--project <id>]` | List cards |
-| `/prello-move <card-id> <status> [--substatus key] [--project <id>]` | Move a card |
-| `/prello-board [--project <id>]` | Board overview |
+| `/limoncello-projects` | List all projects |
+| `/limoncello-create-project "name" [--file <path>]` | Create a project (optionally from a JSON file) |
+| `/limoncello-add "title" [--status todo] [--substatus key] [--description "..."] [--project <id>]` | Create a card |
+| `/limoncello-list [--status in_progress] [--project <id>]` | List cards |
+| `/limoncello-move <card-id> <status> [--substatus key] [--project <id>]` | Move a card |
+| `/limoncello-board [--project <id>]` | Board overview |
 
 All card commands accept an optional `--project <project-id>` parameter. If omitted, they operate on the Default project.
 
 ## API
 
-When `PRELLO_API_KEY` is set, requests require `Authorization: Bearer <key>` header.
+When `LIMONCELLO_API_KEY` is set, requests require `Authorization: Bearer <key>` header.
 
 ### Project Endpoints
 
@@ -131,15 +131,15 @@ Deployed at https://prello.fly.dev
 fly deploy
 ```
 
-SQLite data persists on a Fly.io volume. Auth is required via `PRELLO_API_KEY` secret.
+SQLite data persists on a Fly.io volume. Auth is required via `LIMONCELLO_API_KEY` secret.
 
 ## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | PORT | 3654 | Server port |
-| DATABASE_PATH | ./data/prello.db | SQLite database file path |
-| PRELLO_API_KEY | (none) | Bearer token for API auth (required when deployed). Must not resemble a third-party key (e.g., Stripe `sk_live_*` / `sk_test_*` patterns are rejected on startup). Use a random string like `openssl rand -base64 32`. |
+| DATABASE_PATH | ./data/limoncello.db | SQLite database file path |
+| LIMONCELLO_API_KEY | (none) | Bearer token for API auth (required when deployed). Must not resemble a third-party key (e.g., Stripe `sk_live_*` / `sk_test_*` patterns are rejected on startup). Use a random string like `openssl rand -base64 32`. |
 
 ## License
 

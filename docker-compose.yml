@@ -1,7 +1,7 @@
 # Docker Compose configuration for local development
 #
 # Usage:
-#   docker compose up --build     # Start Prello
+#   docker compose up --build     # Start Limoncello
 #   docker compose down           # Stop
 #   docker compose logs -f app    # View logs
 

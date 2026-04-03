@@ -4,7 +4,7 @@ Instructions for Claude Code. See [SPEC.md](SPEC.md) for the full product spec.
 
 ## Project Overview
 
-Prello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server or slash commands. Both create and manage cards on shared projects.
+Limoncello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server or slash commands. Both create and manage cards on shared projects.
 
 Projects feature: Each project has its own custom columns. Cards belong to projects. The Default project provides backward compatibility.
 
@@ -14,11 +14,11 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 
 - **Local**: `npm run dev` -- board at http://localhost:3654
 - **Production**: https://prello.fly.dev (Fly.io, SQLite on persistent volume)
-- **Auth**: Bearer token via `PRELLO_API_KEY` env var. Required on Fly.io, optional locally.
+- **Auth**: Bearer token via `LIMONCELLO_API_KEY` env var. Required on Fly.io, optional locally.
 
 ## Key Architecture
 
-- **Database**: SQLite at `./data/prello.db` -- created automatically on first run
+- **Database**: SQLite at `./data/limoncello.db` -- created automatically on first run
 - **Schema-on-startup**: Tables (projects, cards) created via `CREATE TABLE IF NOT EXISTS` in `src/db.js`
 - **Projects table**: Each project has custom columns (stored as JSON array of {key, label, substatuses})
 - **Cards table**: Cards belong to projects via `project_id` foreign key
@@ -26,14 +26,14 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **Sub-statuses**: Columns can define optional sub-statuses. Cards have nullable `substatus` field, validated against column definition
 - **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects (`src/lib/ids.js`)
 - **Port**: 3654
-- **Auth**: Bearer token via `PRELLO_API_KEY` (optional; if unset, no auth required)
+- **Auth**: Bearer token via `LIMONCELLO_API_KEY` (optional; if unset, no auth required)
 - **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
 - **Backward compat**: `/api/cards` routes to Default project
 - **UI**: Vanilla HTML/CSS/JS served from `src/public/`, dynamic columns based on selected project
 - **MCP (STDIO)**: `src/mcp.mjs` -- STDIO transport entry point for local subprocess use
 - **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use
 - **MCP tools**: `src/mcp-tools.mjs` -- shared tool definitions used by both transports
-- **WebSocket**: `/ws` endpoint for real-time board updates (`src/ws.js`). Clients subscribe to a project; card mutations broadcast to all subscribers. Auth via `?token=` query param when `PRELLO_API_KEY` is set.
+- **WebSocket**: `/ws` endpoint for real-time board updates (`src/ws.js`). Clients subscribe to a project; card mutations broadcast to all subscribers. Auth via `?token=` query param when `LIMONCELLO_API_KEY` is set.
 
 ## Project Structure
 
@@ -52,13 +52,13 @@ src/
     style.css         # Board styles
     app.js            # Client-side JS
 .claude/commands/
-  prello-projects.md         # /prello-projects slash command
-  prello-create-project.md   # /prello-create-project slash command
-  prello-add.md              # /prello-add slash command
-  prello-list.md             # /prello-list slash command
-  prello-move.md             # /prello-move slash command
-  prello-board.md            # /prello-board slash command
-  prello-changes.md          # /prello-changes slash command
+  limoncello-projects.md         # /limoncello-projects slash command
+  limoncello-create-project.md   # /limoncello-create-project slash command
+  limoncello-add.md              # /limoncello-add slash command
+  limoncello-list.md             # /limoncello-list slash command
+  limoncello-move.md             # /limoncello-move slash command
+  limoncello-board.md            # /limoncello-board slash command
+  limoncello-changes.md          # /limoncello-changes slash command
 examples/
   columns-template.json      # Example column definition file for project creation
 ```
@@ -97,7 +97,7 @@ curl -X POST http://127.0.0.1:3654/api/cards \
 # Create a card in specific project (production, with auth)
 curl -X POST https://prello.fly.dev/api/projects/prj_abc123/cards \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $PRELLO_API_KEY" \
+  -H "Authorization: Bearer $LIMONCELLO_API_KEY" \
   -d '{"title": "Test card", "status": "todo"}'
 
 # List cards in Default project
@@ -114,7 +114,7 @@ curl http://127.0.0.1:3654/api/projects/prj_abc123/cards
 No local process needed. Claude Code connects directly to the deployed server:
 
 ```bash
-claude mcp add prello -s user --transport http \
+claude mcp add limoncello -s user --transport http \
   --header "Authorization: Bearer <your-api-key>" \
   -- https://prello.fly.dev/mcp
 ```
@@ -126,35 +126,35 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 ```json
 {
   "mcpServers": {
-    "prello": {
+    "limoncello": {
       "command": "node",
-      "args": ["/Users/plc/Documents/prello/src/mcp.mjs"],
+      "args": ["/Users/plc/Documents/limoncello/src/mcp.mjs"],
       "env": {
-        "PRELLO_URL": "https://prello.fly.dev",
-        "PRELLO_API_KEY": "<your-api-key>"
+        "LIMONCELLO_URL": "https://prello.fly.dev",
+        "LIMONCELLO_API_KEY": "<your-api-key>"
       }
     }
   }
 }
 ```
 
-MCP tools: `prello_projects`, `prello_create_project` (with `columns_file`), `prello_add` (with substatus), `prello_list`, `prello_move` (with substatus), `prello_board`, `prello_changes`
+MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
-## Working with the Prello Board
+## Working with the Limoncello Board
 
-This project tracks its own work on a Prello board: **Prello Development** (`prj_UevwwjWyYEEG`).
+This project tracks its own work on a Limoncello board: **Limoncello Development** (`prj_UevwwjWyYEEG`).
 
 ### On session start
 
 At the beginning of every session, check the board for current tasks:
 
 ```
-prello_board(project_id: "prj_UevwwjWyYEEG")
+limoncello_board(project_id: "prj_UevwwjWyYEEG")
 ```
 
-Or use `prello_changes` with a `since` timestamp if you know when your last session ended. The `server_time` in the response can be stored and reused as `since` next time.
+Or use `limoncello_changes` with a `since` timestamp if you know when your last session ended. The `server_time` in the response can be stored and reused as `since` next time.
 
 ### Working on tasks
 
@@ -224,7 +224,7 @@ Columns can define sub-statuses. Default columns include `blocked` with sub-stat
 ## Gotchas
 
 - **Fly.io SSH tests unreliable**: The machine has `auto_stop_machines = 'stop'` in `fly.toml`, so `fly ssh console` often fails with "Connection refused" because the machine is stopped. Don't waste time debugging SSH -- test via the public URL (`https://prello.fly.dev/...`) instead.
-- **API key format**: `PRELLO_API_KEY` must not resemble a third-party credential. The server rejects keys matching Stripe patterns (`sk_live_*`, `sk_test_*`, `pk_*`, `rk_*`) on startup. Use a dedicated random string (e.g., `openssl rand -base64 32`).
+- **API key format**: `LIMONCELLO_API_KEY` must not resemble a third-party credential. The server rejects keys matching Stripe patterns (`sk_live_*`, `sk_test_*`, `pk_*`, `rk_*`) on startup. Use a dedicated random string (e.g., `openssl rand -base64 32`).
 
 ## Git Workflow
 

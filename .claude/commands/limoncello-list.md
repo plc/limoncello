@@ -1,11 +1,11 @@
-# Prello List Cards
+# Limoncello List Cards
 
-List all cards on the Prello Kanban board, optionally filtered by status.
+List all cards on the Limoncello Kanban board, optionally filtered by status.
 
 ## Usage
 
 ```
-/prello-list [--status <status>] [--project <project-id>]
+/limoncello-list [--status <status>] [--project <project-id>]
 ```
 
 ## Arguments

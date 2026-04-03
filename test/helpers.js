@@ -1,5 +1,5 @@
 /**
- * Test helpers for Prello.
+ * Test helpers for Limoncello.
  *
  * Sets DATABASE_PATH to :memory: BEFORE requiring the db module,
  * so each test process (node --test runs each file in a child process)

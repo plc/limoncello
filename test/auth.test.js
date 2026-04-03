@@ -282,8 +282,8 @@ describe('API Key Format Guard - Stripe-like keys rejected', () => {
   });
 
   it('allows normal API keys', () => {
-    assert.ok(!STRIPE_PATTERN.test('my-prello-key-123'));
+    assert.ok(!STRIPE_PATTERN.test('my-limoncello-key-123'));
     assert.ok(!STRIPE_PATTERN.test('a1b2c3d4e5f6'));
-    assert.ok(!STRIPE_PATTERN.test('prello_production_key'));
+    assert.ok(!STRIPE_PATTERN.test('limoncello_production_key'));
   });
 });

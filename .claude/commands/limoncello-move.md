@@ -1,11 +1,11 @@
-# Prello Move Card
+# Limoncello Move Card
 
-Move a card to a new status column on the Prello Kanban board.
+Move a card to a new status column on the Limoncello Kanban board.
 
 ## Usage
 
 ```
-/prello-move <card-id> <status> [--substatus <substatus>] [--project <project-id>]
+/limoncello-move <card-id> <status> [--substatus <substatus>] [--project <project-id>]
 ```
 
 ## Arguments

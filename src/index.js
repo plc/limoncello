@@ -1,5 +1,5 @@
 /**
- * Prello -- Local Kanban board for human-AI collaboration
+ * Limoncello -- Local Kanban board for human-AI collaboration
  *
  * Entry point. Sets up Express server with:
  * - SQLite schema initialization on startup
@@ -10,8 +10,8 @@
  *
  * Environment variables:
  * - PORT: Server port (default: 3654)
- * - DATABASE_PATH: SQLite file path (default: ./data/prello.db)
- * - PRELLO_API_KEY: Bearer token for API auth (optional; if unset, no auth required)
+ * - DATABASE_PATH: SQLite file path (default: ./data/limoncello.db)
+ * - LIMONCELLO_API_KEY: Bearer token for API auth (optional; if unset, no auth required)
  */
 
 const crypto = require('node:crypto');
@@ -41,12 +41,12 @@ app.use(helmet({
 }));
 app.use(express.json());
 
-// Auth middleware -- if PRELLO_API_KEY is set, require Bearer token on /api/* and /mcp routes
-const apiKey = process.env.PRELLO_API_KEY;
+// Auth middleware -- if LIMONCELLO_API_KEY is set, require Bearer token on /api/* and /mcp routes
+const apiKey = process.env.LIMONCELLO_API_KEY;
 
 // Reject API keys that look like third-party credentials (Stripe, etc.)
 if (apiKey && /^(sk|pk|rk)_(live|test)_/i.test(apiKey)) {
-  console.error('PRELLO_API_KEY looks like a Stripe key. Use a dedicated key for Prello, not a third-party credential.');
+  console.error('LIMONCELLO_API_KEY looks like a Stripe key. Use a dedicated key for Limoncello, not a third-party credential.');
   process.exit(1);
 }
 function requireAuth(req, res, next) {
@@ -66,7 +66,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Project API (auth required if PRELLO_API_KEY is set)
+// Project API (auth required if LIMONCELLO_API_KEY is set)
 app.use('/api/projects', requireAuth, projectsRouter);
 
 // Card API -- project-scoped
@@ -102,7 +102,7 @@ async function start() {
   const { StreamableHTTPServerTransport } = await import(
     '@modelcontextprotocol/sdk/server/streamableHttp.js'
   );
-  const { createPrelloMcpServer } = await import('./mcp-tools.mjs');
+  const { createLimoncelloMcpServer } = await import('./mcp-tools.mjs');
 
   // Session management: sessionId -> { transport, server }
   const sessions = new Map();
@@ -144,7 +144,7 @@ async function start() {
       };
 
       const mcpBaseUrl = `http://localhost:${port}`;
-      const server = createPrelloMcpServer(mcpBaseUrl, apiKey || '');
+      const server = createLimoncelloMcpServer(mcpBaseUrl, apiKey || '');
       await server.connect(transport);
 
       await transport.handleRequest(req, res, req.body);
@@ -173,11 +173,11 @@ async function start() {
   setupWebSocket(server, apiKey);
 
   server.listen(port, '0.0.0.0', () => {
-    console.log(`Prello running on http://localhost:${port}`);
+    console.log(`Limoncello running on http://localhost:${port}`);
   });
 }
 
 start().catch((err) => {
-  console.error('Failed to start Prello:', err);
+  console.error('Failed to start Limoncello:', err);
   process.exit(1);
 });

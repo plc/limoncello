@@ -1,8 +1,8 @@
 /**
- * Shared MCP tool definitions for Prello.
+ * Shared MCP tool definitions for Limoncello.
  *
- * Exports createPrelloMcpServer(baseUrl, apiKey) which returns a configured
- * McpServer instance with all Prello tools and prompts registered.
+ * Exports createLimoncelloMcpServer(baseUrl, apiKey) which returns a configured
+ * McpServer instance with all Limoncello tools and prompts registered.
  *
  * Used by both the STDIO transport (src/mcp.mjs) and the Streamable HTTP
  * transport (mounted at /mcp in src/index.js).
@@ -13,22 +13,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 /**
- * Create and return a fully-configured Prello MCP server.
+ * Create and return a fully-configured Limoncello MCP server.
  *
- * @param {string} baseUrl  Base URL of the Prello API (e.g. http://localhost:3654)
+ * @param {string} baseUrl  Base URL of the Limoncello API (e.g. http://localhost:3654)
  * @param {string} apiKey   Bearer token for auth (empty string if no auth)
  * @returns {McpServer}
  */
-export function createPrelloMcpServer(baseUrl, apiKey) {
-  const PRELLO_URL = baseUrl.replace(/\/$/, '');
-  const PRELLO_API_KEY = apiKey || '';
+export function createLimoncelloMcpServer(baseUrl, apiKey) {
+  const LIMONCELLO_URL = baseUrl.replace(/\/$/, '');
+  const LIMONCELLO_API_KEY = apiKey || '';
 
   // HTTP helper
   async function api(path, options = {}) {
-    const url = `${PRELLO_URL}${path}`;
+    const url = `${LIMONCELLO_URL}${path}`;
     const headers = { ...options.headers };
-    if (PRELLO_API_KEY) {
-      headers['Authorization'] = `Bearer ${PRELLO_API_KEY}`;
+    if (LIMONCELLO_API_KEY) {
+      headers['Authorization'] = `Bearer ${LIMONCELLO_API_KEY}`;
     }
     if (options.body) {
       headers['Content-Type'] = 'application/json';
@@ -85,14 +85,14 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
 
   // MCP Server
   const server = new McpServer({
-    name: 'prello',
+    name: 'limoncello',
     version: '1.0.0',
   });
 
-  // Tool: prello_projects
+  // Tool: limoncello_projects
   server.tool(
-    'prello_projects',
-    'List all Prello projects with their columns',
+    'limoncello_projects',
+    'List all Limoncello projects with their columns',
     {},
     async () => {
       const projects = await api('/api/projects');
@@ -122,10 +122,10 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_create_project
+  // Tool: limoncello_create_project
   server.tool(
-    'prello_create_project',
-    'Create a new Prello project with custom columns. Columns can be provided inline or loaded from a JSON file.',
+    'limoncello_create_project',
+    'Create a new Limoncello project with custom columns. Columns can be provided inline or loaded from a JSON file.',
     {
       name: z.string().optional().describe('Project name (required unless columns_file provides one)'),
       columns: z.array(z.object({
@@ -185,10 +185,10 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
         }
       }
 
-      text += `\n\n---\nTip: To get the most out of Prello, add instructions to your project's CLAUDE.md (or equivalent) so you and future sessions remember to use this board. Example:\n`;
-      text += `\n## Prello Board\n`;
-      text += `This project tracks work on a Prello board: **${project.name}** (\`${project.id}\`).\n`;
-      text += `- At session start, run \`prello_board(project_id: "${project.id}")\` to check for current tasks\n`;
+      text += `\n\n---\nTip: To get the most out of Limoncello, add instructions to your project's CLAUDE.md (or equivalent) so you and future sessions remember to use this board. Example:\n`;
+      text += `\n## Limoncello Board\n`;
+      text += `This project tracks work on a Limoncello board: **${project.name}** (\`${project.id}\`).\n`;
+      text += `- At session start, run \`limoncello_board(project_id: "${project.id}")\` to check for current tasks\n`;
       text += `- Move cards to \`in_progress\` when starting work, \`done\` when finished\n`;
       text += `- Add new cards to \`backlog\` when you discover work\n`;
       text += `- If blocked or need human input, move cards to \`blocked\``;
@@ -197,10 +197,10 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_add
+  // Tool: limoncello_add
   server.tool(
-    'prello_add',
-    'Create a new card on the Prello board',
+    'limoncello_add',
+    'Create a new card on the Limoncello board',
     {
       title: z.string().describe('Card title'),
       description: z.string().optional().describe('Card description'),
@@ -236,10 +236,10 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_list
+  // Tool: limoncello_list
   server.tool(
-    'prello_list',
-    'List cards on the Prello board, optionally filtered by status',
+    'limoncello_list',
+    'List cards on the Limoncello board, optionally filtered by status',
     {
       status: z.string().optional().describe('Filter to a specific column'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
@@ -295,9 +295,9 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_move
+  // Tool: limoncello_move
   server.tool(
-    'prello_move',
+    'limoncello_move',
     'Move a card to a different status column',
     {
       card_id: z.string().describe('Card ID (e.g., crd_abc123)'),
@@ -334,9 +334,9 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_changes
+  // Tool: limoncello_changes
   server.tool(
-    'prello_changes',
+    'limoncello_changes',
     'Get cards that have changed since a given timestamp. Use this to poll for recent activity on the board.',
     {
       since: z.string().describe('ISO 8601 timestamp (e.g., "2026-04-02T10:30:00.000Z"). Only cards updated after this time will be returned.'),
@@ -388,10 +388,10 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
     }
   );
 
-  // Tool: prello_board
+  // Tool: limoncello_board
   server.tool(
-    'prello_board',
-    'Show a summary of the Prello board with card counts and listings',
+    'limoncello_board',
+    'Show a summary of the Limoncello board with card counts and listings',
     {
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
     },
@@ -449,16 +449,16 @@ export function createPrelloMcpServer(baseUrl, apiKey) {
 
   // Prompt: onboarding suggestion
   server.prompt(
-    'prello_setup',
-    'Suggested instructions for integrating Prello into your workflow',
+    'limoncello_setup',
+    'Suggested instructions for integrating Limoncello into your workflow',
     async () => ({
       messages: [{
         role: 'user',
         content: {
           type: 'text',
-          text: `You have access to a Prello board -- a shared Kanban board for human-AI collaboration.
+          text: `You have access to a Limoncello board -- a shared Kanban board for human-AI collaboration.
 
-Consider updating your CLAUDE.md (or equivalent project instructions) to remind yourself and sub-agents to use Prello as part of your workflow. For example:
+Consider updating your CLAUDE.md (or equivalent project instructions) to remind yourself and sub-agents to use Limoncello as part of your workflow. For example:
 
 - Create cards for todo items discovered during work
 - Create cards for items that need human review or decision
@@ -467,12 +467,12 @@ Consider updating your CLAUDE.md (or equivalent project instructions) to remind 
 
 Example CLAUDE.md addition:
 
-## Prello Board
-Use the Prello MCP tools to track work on the shared Kanban board.
-- When you discover a task, create a card with \`prello_add\`
+## Limoncello Board
+Use the Limoncello MCP tools to track work on the shared Kanban board.
+- When you discover a task, create a card with \`limoncello_add\`
 - When a task needs human review, create a card in the appropriate column
-- Move cards with \`prello_move\` as you complete work
-- Check \`prello_board\` at the start of each session for context`,
+- Move cards with \`limoncello_move\` as you complete work
+- Check \`limoncello_board\` at the start of each session for context`,
         },
       }],
     })

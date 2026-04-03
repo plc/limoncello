@@ -1,5 +1,5 @@
 {
-  "name": "prello",
+  "name": "limoncello",
   "version": "1.0.0",
   "description": "Local-first Kanban board for human-AI collaboration",
   "main": "src/index.js",

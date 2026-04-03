@@ -1,10 +1,10 @@
-# Prello -- Product Specification
+# Limoncello -- Product Specification
 
 ## 1. Problem Statement
 
 When working with AI agents (Claude Code in particular), there is no lightweight way to share a structured task list between human and AI. The human thinks "we need to do X, Y, Z" but communicates this ad hoc in conversation. The AI thinks "I should also do A, B, C" but has no persistent place to track it.
 
-Prello solves this by providing a simple, local-first Trello-style board where both humans and AI agents can create, view, move, and manage cards.
+Limoncello solves this by providing a simple, local-first Trello-style board where both humans and AI agents can create, view, move, and manage cards.
 
 ## 2. Goals
 
@@ -24,10 +24,10 @@ Prello solves this by providing a simple, local-first Trello-style board where b
 
 ### Stack
 - **Runtime**: Node.js 20 + Express
-- **Database**: SQLite via better-sqlite3, stored at `./data/prello.db`
+- **Database**: SQLite via better-sqlite3, stored at `./data/limoncello.db`
 - **UI**: Vanilla HTML + CSS + JS (no build step, no framework)
 - **Port**: 3654
-- **Auth**: Optional bearer token via `PRELLO_API_KEY` env var
+- **Auth**: Optional bearer token via `LIMONCELLO_API_KEY` env var
 - **IDs**: nanoid with `crd_` prefix
 
 ### Database Schema
@@ -214,21 +214,21 @@ For backward compatibility, `/api/cards` routes to the Default project:
 
 Two transports are supported:
 
-- **Streamable HTTP**: `/mcp` endpoint in `src/index.js` -- for remote connections (e.g. Claude Code connecting to `https://prello.fly.dev/mcp`). Stateful sessions with `Mcp-Session-Id` header. Auth via same `PRELLO_API_KEY` bearer token. MCP tools call the API on `localhost` within the same process.
-- **STDIO**: `src/mcp.mjs` -- for local subprocess use (Claude Desktop, Claude Code local config). Configured via `PRELLO_URL` and `PRELLO_API_KEY` env vars. Calls the REST API over HTTP.
+- **Streamable HTTP**: `/mcp` endpoint in `src/index.js` -- for remote connections (e.g. Claude Code connecting to `https://prello.fly.dev/mcp`). Stateful sessions with `Mcp-Session-Id` header. Auth via same `LIMONCELLO_API_KEY` bearer token. MCP tools call the API on `localhost` within the same process.
+- **STDIO**: `src/mcp.mjs` -- for local subprocess use (Claude Desktop, Claude Code local config). Configured via `LIMONCELLO_URL` and `LIMONCELLO_API_KEY` env vars. Calls the REST API over HTTP.
 
 Shared tool definitions live in `src/mcp-tools.mjs`.
 
 | Tool | Description |
 |------|-------------|
-| `prello_projects` | List all projects with their names, IDs, and columns |
-| `prello_create_project` | Create a project with name, optional inline columns, or a `columns_file` path to load columns from a JSON file |
-| `prello_add` | Create a card with title, optional status, substatus, description, and project_id |
-| `prello_list` | List cards (displays sub-status labels), optionally filtered by status and project_id |
-| `prello_move` | Move a card to a different status, with optional substatus and project_id |
-| `prello_board` | Show board summary with card counts and listing (displays sub-status labels), with optional project_id |
+| `limoncello_projects` | List all projects with their names, IDs, and columns |
+| `limoncello_create_project` | Create a project with name, optional inline columns, or a `columns_file` path to load columns from a JSON file |
+| `limoncello_add` | Create a card with title, optional status, substatus, description, and project_id |
+| `limoncello_list` | List cards (displays sub-status labels), optionally filtered by status and project_id |
+| `limoncello_move` | Move a card to a different status, with optional substatus and project_id |
+| `limoncello_board` | Show board summary with card counts and listing (displays sub-status labels), with optional project_id |
 
-The `prello_create_project` tool accepts an optional `columns_file` parameter -- a local file path to a JSON file containing `name` (optional) and `columns` (array). When provided, the file's columns take precedence over inline `columns`. The `name` parameter takes precedence over the file's `name`. See `examples/columns-template.json` for the file format.
+The `limoncello_create_project` tool accepts an optional `columns_file` parameter -- a local file path to a JSON file containing `name` (optional) and `columns` (array). When provided, the file's columns take precedence over inline `columns`. The `name` parameter takes precedence over the file's `name`. See `examples/columns-template.json` for the file format.
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
@@ -238,19 +238,19 @@ Commands live in `.claude/commands/` and use `curl` to talk to the local API.
 
 | Command | Description |
 |---------|-------------|
-| `/prello-projects` | List all projects with their names, IDs, and columns |
-| `/prello-create-project` | Create a project with name, optional `--file <path>` to load columns from a JSON file |
-| `/prello-add` | Create a card with title, optional --status, --substatus, --description, and --project flags |
-| `/prello-list` | List cards, optionally filtered by --status and --project flags |
-| `/prello-move` | Move a card to a different status, with optional --substatus and --project flags |
-| `/prello-board` | Show board summary with card counts and listing, with optional --project flag |
+| `/limoncello-projects` | List all projects with their names, IDs, and columns |
+| `/limoncello-create-project` | Create a project with name, optional `--file <path>` to load columns from a JSON file |
+| `/limoncello-add` | Create a card with title, optional --status, --substatus, --description, and --project flags |
+| `/limoncello-list` | List cards, optionally filtered by --status and --project flags |
+| `/limoncello-move` | Move a card to a different status, with optional --substatus and --project flags |
+| `/limoncello-board` | Show board summary with card counts and listing, with optional --project flag |
 
 All card commands accept an optional `--project <project-id>` parameter. If omitted, they operate on the Default project.
 
 ## 9. Deployment
 
 - **Local**: `npm run dev` at http://localhost:3654
-- **Production**: https://prello.fly.dev (Fly.io, SQLite on persistent volume, `PRELLO_API_KEY` required)
+- **Production**: https://prello.fly.dev (Fly.io, SQLite on persistent volume, `LIMONCELLO_API_KEY` required)
 
 ## 10. Project Structure
 
@@ -268,12 +268,12 @@ src/
     style.css         # Board styles
     app.js            # Client-side JS
 .claude/commands/
-  prello-projects.md         # /prello-projects slash command
-  prello-create-project.md   # /prello-create-project slash command
-  prello-add.md              # /prello-add slash command
-  prello-list.md             # /prello-list slash command
-  prello-move.md             # /prello-move slash command
-  prello-board.md            # /prello-board slash command
+  limoncello-projects.md         # /limoncello-projects slash command
+  limoncello-create-project.md   # /limoncello-create-project slash command
+  limoncello-add.md              # /limoncello-add slash command
+  limoncello-list.md             # /limoncello-list slash command
+  limoncello-move.md             # /limoncello-move slash command
+  limoncello-board.md            # /limoncello-board slash command
 examples/
   columns-template.json      # Example column definition file for project creation
 ```

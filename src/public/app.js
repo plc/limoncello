@@ -8,11 +8,11 @@ let sourceColumn = null;
 
 // Auth -- stored in localStorage, prompted on 401
 function getApiKey() {
-  return localStorage.getItem('prello_api_key') || '';
+  return localStorage.getItem('limoncello_api_key') || '';
 }
 
 function setApiKey(key) {
-  localStorage.setItem('prello_api_key', key);
+  localStorage.setItem('limoncello_api_key', key);
 }
 
 async function apiFetch(url, options = {}) {
@@ -38,11 +38,11 @@ async function apiFetch(url, options = {}) {
 
 // Persistence for selected project
 function getSavedProjectId() {
-  return localStorage.getItem('prello_project_id') || '';
+  return localStorage.getItem('limoncello_project_id') || '';
 }
 
 function saveProjectId(id) {
-  localStorage.setItem('prello_project_id', id);
+  localStorage.setItem('limoncello_project_id', id);
 }
 
 // API base path for the current project

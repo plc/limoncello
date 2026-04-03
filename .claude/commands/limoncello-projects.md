@@ -1,11 +1,11 @@
-# Prello List Projects
+# Limoncello List Projects
 
-List all projects in Prello.
+List all projects in Limoncello.
 
 ## Usage
 
 ```
-/prello-projects
+/limoncello-projects
 ```
 
 ## Arguments
@@ -24,8 +24,8 @@ Display the projects with:
 
 1. Header section:
    ```
-   PRELLO PROJECTS
-   ===============
+   LIMONCELLO PROJECTS
+   ===================
    ```
 
 2. For each project, show:
@@ -42,9 +42,9 @@ Display the projects with:
 
 4. If no projects exist, display:
    ```
-   PRELLO PROJECTS
-   ===============
-   No projects found. Use /prello-add to create cards in the Default project.
+   LIMONCELLO PROJECTS
+   ===================
+   No projects found. Use /limoncello-add to create cards in the Default project.
    ```
 
 Format the output to be compact and easy to scan visually. Use formatting like headers, separators, and indentation to make the structure clear.

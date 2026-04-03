@@ -1,11 +1,11 @@
-# Prello Changes
+# Limoncello Changes
 
 Poll for cards that have changed since a given timestamp. Use this to stay aware of recent board activity.
 
 ## Usage
 
 ```
-/prello-changes --since <ISO8601-timestamp> [--project <project-id>]
+/limoncello-changes --since <ISO8601-timestamp> [--project <project-id>]
 ```
 
 ## Arguments
@@ -15,13 +15,13 @@ Poll for cards that have changed since a given timestamp. Use this to stay aware
 
 ## Instructions
 
-This command uses the MCP tool `prello_changes` to fetch recent changes.
+This command uses the MCP tool `limoncello_changes` to fetch recent changes.
 
 Parse the arguments from `$ARGUMENTS`:
 1. Extract `--since` value (required)
 2. Extract `--project` value if present (optional)
 
-Call the `prello_changes` MCP tool with the parsed parameters:
+Call the `limoncello_changes` MCP tool with the parsed parameters:
 - `since`: the timestamp value from `--since`
 - `project_id`: the project ID from `--project` (if provided)
 
@@ -38,12 +38,12 @@ Error: --since parameter is required. Provide an ISO 8601 timestamp (e.g., "2026
 ## Example
 
 ```
-/prello-changes --since "2026-04-02T10:30:00.000Z"
-/prello-changes --since "2026-04-02T10:30:00.000Z" --project prj_abc123
+/limoncello-changes --since "2026-04-02T10:30:00.000Z"
+/limoncello-changes --since "2026-04-02T10:30:00.000Z" --project prj_abc123
 ```
 
 ## Tips
 
 - Use the `server_time` returned by the previous call as the `since` value for your next poll
 - Call this at the start of a session to see what changed since your last session
-- Combine with `/prello-board` to get full context on session start
+- Combine with `/limoncello-board` to get full context on session start

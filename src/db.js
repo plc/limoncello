@@ -5,14 +5,14 @@
  *   db         -- better-sqlite3 instance
  *   initSchema() -- creates tables and indexes (idempotent)
  *
- * Database file: ./data/prello.db (created automatically)
+ * Database file: ./data/limoncello.db (created automatically)
  */
 
 const path = require('path');
 const Database = require('better-sqlite3');
 const { projectId } = require('./lib/ids');
 
-const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'prello.db');
+const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'limoncello.db');
 const db = new Database(dbPath);
 
 // Enable WAL mode for better concurrent read performance

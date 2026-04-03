@@ -1,5 +1,5 @@
 /**
- * ID generation for Prello cards
+ * ID generation for Limoncello cards
  *
  * Uses nanoid with alphanumeric alphabet and crd_ prefix.
  */
