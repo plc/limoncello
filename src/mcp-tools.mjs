@@ -87,6 +87,19 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
   const server = new McpServer({
     name: 'limoncello',
     version: '1.0.0',
+    instructions: `You have access to Limoncello, a shared Kanban board for human-AI collaboration. This board is how you and the user coordinate work.
+
+IMPORTANT -- DO THESE THINGS:
+
+1. AT SESSION START: Call limoncello_board to check for pending tasks. If there are cards in "To Do" or "In Progress", prioritize them. This is not optional -- the user may have added or reprioritized cards since your last session.
+
+2. DURING WORK: When you discover new tasks, create cards with limoncello_add. When you start a task, move it to in_progress. When blocked, move it to blocked. When done, move it to done.
+
+3. POLL FOR CHANGES: During long sessions, periodically call limoncello_changes to check if the user has added or moved cards via the web UI.
+
+4. FIRST-TIME SETUP: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), call limoncello_onboard to generate a setup plan. Present it to the user for approval. This ensures future sessions automatically check the board.
+
+The board is shared -- the user sees your card updates in real time via the web UI at /board. Treat the board as the source of truth for what needs doing.`,
   });
 
   // Tool: limoncello_projects
@@ -200,7 +213,7 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
   // Tool: limoncello_add
   server.tool(
     'limoncello_add',
-    'Create a new card on the Limoncello board',
+    'Create a new card on the Limoncello board. Use this whenever you discover work that needs tracking -- bugs, TODOs, follow-ups, or tasks for the user to review.',
     {
       title: z.string().describe('Card title'),
       description: z.string().optional().describe('Card description'),
@@ -306,7 +319,7 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
   // Tool: limoncello_move
   server.tool(
     'limoncello_move',
-    'Move a card to a different status column',
+    'Move a card to a different status column. Move cards to in_progress when starting work, blocked when waiting, and done when finished.',
     {
       card_id: z.string().describe('Card ID (e.g., crd_abc123)'),
       status: z.string().describe('Target column'),
@@ -348,7 +361,7 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
   // Tool: limoncello_changes
   server.tool(
     'limoncello_changes',
-    'Get cards that have changed since a given timestamp. Use this to poll for recent activity on the board.',
+    'Get cards changed since a timestamp. Call this periodically during long sessions to check if the user has added or moved cards via the web UI.',
     {
       since: z.string().describe('ISO 8601 timestamp (e.g., "2026-04-02T10:30:00.000Z"). Only cards updated after this time will be returned.'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
@@ -403,7 +416,7 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
   // Tool: limoncello_board
   server.tool(
     'limoncello_board',
-    'Show a summary of the Limoncello board with card counts and listings',
+    'Show board summary with card counts and listings. CALL THIS AT THE START OF EVERY SESSION to check for pending tasks and priorities.',
     {
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
     },
@@ -457,6 +470,102 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       }
 
       return { content: [{ type: 'text', text: text.trim() }] };
+    }
+  );
+
+  // Tool: limoncello_onboard
+  server.tool(
+    'limoncello_onboard',
+    'Generate an onboarding plan for integrating Limoncello into a project. CALL THIS if the current project does not reference Limoncello in its CLAUDE.md -- it generates a setup plan to present to the user for approval.',
+    {
+      project_id: z.string().optional().describe('Project ID (defaults to Default project)'),
+      project_dir: z.string().optional().describe('Path to the project root directory (for reading/checking CLAUDE.md)'),
+    },
+    async ({ project_id, project_dir }) => {
+      const project = await getProjectInfo(project_id);
+      if (!project) {
+        return {
+          content: [{ type: 'text', text: 'No project found.' }],
+        };
+      }
+
+      // Check if already onboarded
+      if (project_dir) {
+        try {
+          const claudeMdPath = `${project_dir.replace(/\/$/, '')}/CLAUDE.md`;
+          const claudeMd = readFileSync(claudeMdPath, 'utf-8');
+          const lowerContent = claudeMd.toLowerCase();
+          if (lowerContent.includes(project.id) || lowerContent.includes('limoncello')) {
+            return {
+              content: [{
+                type: 'text',
+                text: `This project already references Limoncello in CLAUDE.md. Board: ${project.name} (${project.id}).`,
+              }],
+            };
+          }
+        } catch {
+          // File doesn't exist or can't be read -- proceed with onboarding
+        }
+      }
+
+      const text = `LIMONCELLO ONBOARDING PLAN
+===========================
+
+This project is connected to Limoncello but hasn't been configured to use it effectively.
+Board: ${project.name} (${project.id})
+
+IMPORTANT: Present this plan to the user for approval before making any changes.
+
+--- STEP 1: Add Limoncello section to CLAUDE.md ---
+
+Add the following to your project's CLAUDE.md (or create one if it doesn't exist):
+
+## Limoncello Board
+
+This project tracks work on a Limoncello board: **${project.name}** (\`${project.id}\`).
+
+### On session start
+
+At the beginning of every session, check the board for current tasks:
+
+\`\`\`
+limoncello_board(project_id: "${project.id}")
+\`\`\`
+
+### Working on tasks
+
+- Before starting work on a card, move it to \`in_progress\`
+- If blocked (waiting on human input, unclear requirements), move it to \`blocked\`
+- When finished, move it to \`done\`
+- If you discover new work while implementing a task, add it as a new card in \`backlog\`
+
+### Why this matters
+
+The board is shared between humans and agents. Humans may add, reprioritize, or annotate cards via the web UI between agent sessions. Polling ensures you're working on what matters and not duplicating effort.
+
+--- STEP 2: (Optional) Add Claude Code hooks ---
+
+For maximum integration, the user can add hooks to their Claude Code settings (~/.claude/settings.json) that automatically remind the agent to check the board:
+
+Stop hook (runs after each turn where files were edited):
+{
+  "type": "agent",
+  "prompt": "Claude just finished a turn. Only act if files were actually edited this turn -- if this was a conversation-only turn, respond with {\\"ok\\": true}.\\n\\nIf files were edited:\\n1. Read CLAUDE.md in the current working directory. If it contains a Limoncello board reference, check whether any Limoncello cards correspond to the completed work and need a status update. If so, respond with {\\"ok\\": false, \\"reason\\": \\"Update the relevant Limoncello card status to reflect the completed work, then commit any uncommitted changes.\\"}.\\n2. If nothing needs doing, respond with {\\"ok\\": true}.",
+  "timeout": 60
+}
+
+TaskCompleted hook (runs when a task is marked complete):
+{
+  "type": "agent",
+  "prompt": "A task was just marked as completed. Read CLAUDE.md in the current working directory. If it contains a Limoncello board reference, check whether any Limoncello cards correspond to the completed work and should have their status updated. If so, respond with {\\"ok\\": false, \\"reason\\": \\"Update the relevant Limoncello card status to reflect the completed work.\\"}.\\nIf nothing needs doing, respond with {\\"ok\\": true}.",
+  "timeout": 60
+}
+
+--- STEP 3: Verify setup ---
+
+After making the changes, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
+
+      return { content: [{ type: 'text', text }] };
     }
   );
 

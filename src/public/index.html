@@ -121,29 +121,36 @@
       <p>Kanban board for human-AI collaboration</p>
     </header>
 
-    <section id="for-agents">
-      <h2>For Agents</h2>
+    <section id="create-a-board">
+      <h2>Create a Board</h2>
       <p>
-        Limoncello exposes a self-describing API manual at
-        <a href="/api/man"><code>GET /api/man</code></a>.
-        Hit that endpoint first -- it documents every route, schema,
-        WebSocket protocol, and MCP tool in a single JSON response.
+        Get started by creating a project. Your agent can do this, or you can
+        use curl directly:
       </p>
-      <p>MCP tools available:</p>
-      <ul>
-        <li><code>limoncello_projects</code> -- list projects and columns</li>
-        <li><code>limoncello_add</code> -- create a card</li>
-        <li><code>limoncello_list</code> -- list cards (with optional filters)</li>
-        <li><code>limoncello_move</code> -- move a card between columns</li>
-        <li><code>limoncello_board</code> -- board summary with counts</li>
-        <li><code>limoncello_changes</code> -- poll for recent changes</li>
-        <li><code>limoncello_create_project</code> -- create a project</li>
-      </ul>
-      <p>Quick REST example:</p>
-<pre><code>curl https://limoncello.fly.dev/api/cards \
+<pre><code>curl https://limoncello.fly.dev/api/projects \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $LIMONCELLO_API_KEY" \
-  -d '{"title": "My first card", "status": "todo"}'</code></pre>
+  -d '{"name": "My Project"}'</code></pre>
+      <p>Then connect your agent via MCP so it can manage cards alongside you:</p>
+<pre><code>claude mcp add limoncello -s user --transport http \
+  --header "Authorization: Bearer &lt;your-api-key&gt;" \
+  -- https://limoncello.fly.dev/mcp</code></pre>
+      <p>
+        Full API docs at <a href="/api/man"><code>GET /api/man</code></a>
+        -- every endpoint, schema, and MCP tool in one JSON response.
+      </p>
+    </section>
+
+    <section id="why">
+      <h2>Why Limoncello</h2>
+      <ul>
+        <li>Shared task board -- humans and agents see the same cards in real time</li>
+        <li>Agents check the board at session start and pick up where you left off</li>
+        <li>Humans reprioritize, annotate, and add cards from the web UI between sessions</li>
+        <li>Custom columns and sub-statuses per project (e.g., Blocked > Human Review)</li>
+        <li>MCP integration -- Claude creates, moves, and polls cards as part of its workflow</li>
+        <li>WebSocket push -- card changes appear instantly in the browser</li>
+      </ul>
     </section>
 
     <section id="for-humans">
@@ -151,18 +158,14 @@
       <p>
         The Kanban board lives at <a href="/board"><code>/board</code></a>.
         Drag cards between columns, create projects with custom workflows,
-        and filter by tags. Changes sync in real time via WebSocket.
+        and filter by tags.
+      </p>
+      <p>
+        You'll need an API key to access the board -- ask your agent for the
+        key it uses, or check the <code>LIMONCELLO_API_KEY</code> value from
+        your MCP configuration.
       </p>
       <a class="cta" href="/board">Open the Board</a>
-    </section>
-
-    <section id="getting-started">
-      <h2>Getting Started</h2>
-      <p>Connect Claude Code via MCP (recommended):</p>
-<pre><code>claude mcp add limoncello -s user --transport http \
-  --header "Authorization: Bearer &lt;your-api-key&gt;" \
-  -- https://limoncello.fly.dev/mcp</code></pre>
-      <p>Or use the REST API directly. See <a href="/api/man"><code>/api/man</code></a> for full API documentation.</p>
     </section>
 
     <footer>

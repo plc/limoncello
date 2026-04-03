@@ -7,6 +7,9 @@
 - Homepage links to `/api/man` (agent discovery) and `/board` (web UI)
 - `GET /board` route serves the Kanban board (previously at `/`)
 - Homepage tests (16 tests)
+- `limoncello_onboard` MCP tool -- generates onboarding plan for integrating Limoncello into a project's workflow (CLAUDE.md additions, optional hooks)
+- MCP server `instructions` field -- strongly prompts agents to check the board at session start, create cards for discovered work, poll for changes, and onboard new projects
+- Enhanced MCP tool descriptions -- prescriptive guidance on when to use each tool (e.g., "CALL THIS AT THE START OF EVERY SESSION")
 - Self-describing API manual at `GET /api/man` -- returns structured JSON documenting every endpoint, schema, concept, WebSocket protocol, and MCP tool
 - No auth required on `/api/man` (like `/health`)
 - Manual includes 21 endpoints, project/card schemas, authentication docs, error format, and MCP tool reference
