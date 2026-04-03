@@ -18,6 +18,14 @@
 - API support for `?tag=` query parameter on card list endpoints
 - Tags test coverage (13 tests)
 
+### Changed
+- Homepage rewritten for hosted webapp audience at https://limoncello.fly.dev
+- Removed "Local-first" from tagline (now "Kanban board for human-AI collaboration")
+- Updated REST API example to use production URL with Authorization header
+- Renamed "Quick Start" section to "Getting Started"
+- Removed all self-hosting instructions (npm install, localhost references, STDIO MCP setup)
+- Getting Started section now highlights Streamable HTTP MCP transport as the recommended approach
+
 ### Removed
 - Slash commands (.claude/commands/) removed in favor of MCP tools
 

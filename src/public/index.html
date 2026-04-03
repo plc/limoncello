@@ -118,7 +118,7 @@
   <div class="container">
     <header>
       <h1>Limoncello</h1>
-      <p>Local-first Kanban board for human-AI collaboration</p>
+      <p>Kanban board for human-AI collaboration</p>
     </header>
 
     <section id="for-agents">
@@ -140,8 +140,9 @@
         <li><code>limoncello_create_project</code> -- create a project</li>
       </ul>
       <p>Quick REST example:</p>
-<pre><code>curl http://localhost:3654/api/cards \
+<pre><code>curl https://limoncello.fly.dev/api/cards \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $LIMONCELLO_API_KEY" \
   -d '{"title": "My first card", "status": "todo"}'</code></pre>
     </section>
 
@@ -155,27 +156,13 @@
       <a class="cta" href="/board">Open the Board</a>
     </section>
 
-    <section id="quick-start">
-      <h2>Quick Start</h2>
-<pre><code>npm install
-npm run dev          # board at http://localhost:3654/board</code></pre>
-      <p>Connect Claude Code via MCP (remote):</p>
+    <section id="getting-started">
+      <h2>Getting Started</h2>
+      <p>Connect Claude Code via MCP (recommended):</p>
 <pre><code>claude mcp add limoncello -s user --transport http \
-  --header "Authorization: Bearer &lt;key&gt;" \
+  --header "Authorization: Bearer &lt;your-api-key&gt;" \
   -- https://limoncello.fly.dev/mcp</code></pre>
-      <p>Or locally (STDIO):</p>
-<pre><code>{
-  "mcpServers": {
-    "limoncello": {
-      "command": "node",
-      "args": ["src/mcp.mjs"],
-      "env": {
-        "LIMONCELLO_URL": "http://localhost:3654",
-        "LIMONCELLO_API_KEY": "&lt;key&gt;"
-      }
-    }
-  }
-}</code></pre>
+      <p>Or use the REST API directly. See <a href="/api/man"><code>/api/man</code></a> for full API documentation.</p>
     </section>
 
     <footer>
