@@ -63,6 +63,7 @@ function initSchema() {
         description TEXT DEFAULT '',
         status     TEXT NOT NULL DEFAULT 'backlog',
         substatus  TEXT DEFAULT NULL,
+        tags       TEXT DEFAULT '[]',
         position   INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -91,6 +92,14 @@ function initSchema() {
     db.exec("ALTER TABLE cards ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))");
     console.log('Added updated_at column to cards table');
   }
+
+  // Migration: Add tags column if it doesn't exist
+  const tagsTableInfo = db.prepare("PRAGMA table_info(cards)").all();
+  const hasTags = tagsTableInfo.some(col => col.name === 'tags');
+  if (!hasTags && tagsTableInfo.length > 0) {
+    db.exec("ALTER TABLE cards ADD COLUMN tags TEXT DEFAULT '[]'");
+    console.log('Added tags column to cards table');
+  }
 }
 
 /**
@@ -111,6 +120,7 @@ function migrate_v1_to_v2() {
       description TEXT DEFAULT '',
       status     TEXT NOT NULL DEFAULT 'backlog',
       substatus  TEXT DEFAULT NULL,
+      tags       TEXT DEFAULT '[]',
       position   INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),

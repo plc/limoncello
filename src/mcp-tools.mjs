@@ -206,13 +206,15 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       description: z.string().optional().describe('Card description'),
       status: z.string().optional().describe('Column to place the card in (default: first column of project)'),
       substatus: z.string().optional().describe('Sub-status within the column (e.g. "human_review")'),
+      tags: z.array(z.string()).optional().describe('Tags for the card (e.g. ["bug", "urgent"])'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
     },
-    async ({ title, description, status, substatus, project_id }) => {
+    async ({ title, description, status, substatus, tags, project_id }) => {
       const body = { title };
       if (description) body.description = description;
       if (status) body.status = status;
       if (substatus) body.substatus = substatus;
+      if (tags) body.tags = tags;
 
       const path = project_id ? `/api/projects/${project_id}/cards` : '/api/cards';
       const card = await api(path, {
@@ -226,11 +228,12 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       const substatusLabels = buildSubstatusLabels(project);
       const statusLabel = columnLabels[card.status] || card.status;
       const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+      const tagsLabel = card.tags && card.tags.length > 0 ? ` ${card.tags.map(t => '#' + t).join(' ')}` : '';
 
       return {
         content: [{
           type: 'text',
-          text: `Created card ${card.id} "${card.title}" in ${statusLabel}${subLabel}`,
+          text: `Created card ${card.id} "${card.title}" in ${statusLabel}${subLabel}${tagsLabel}`,
         }],
       };
     }
@@ -242,11 +245,15 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
     'List cards on the Limoncello board, optionally filtered by status',
     {
       status: z.string().optional().describe('Filter to a specific column'),
+      tag: z.string().optional().describe('Filter to cards with this tag'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
     },
-    async ({ status, project_id }) => {
+    async ({ status, tag, project_id }) => {
       const basePath = project_id ? `/api/projects/${project_id}/cards` : '/api/cards';
-      const path = status ? `${basePath}?status=${status}` : basePath;
+      const queryParams = [];
+      if (status) queryParams.push(`status=${encodeURIComponent(status)}`);
+      if (tag) queryParams.push(`tag=${encodeURIComponent(tag)}`);
+      const path = queryParams.length > 0 ? `${basePath}?${queryParams.join('&')}` : basePath;
       const cards = await api(path);
 
       // Get project info for column labels
@@ -285,8 +292,9 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
         text += `${columnLabels[key]} (${grouped[key].length})\n`;
         for (const card of grouped[key].sort((a, b) => a.position - b.position)) {
           const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+          const tagsLabel = card.tags && card.tags.length > 0 ? ` ${card.tags.map(t => '#' + t).join(' ')}` : '';
           const desc = card.description ? ` -- ${card.description}` : '';
-          text += `  [${card.id}] ${card.title}${subLabel}${desc}\n`;
+          text += `  [${card.id}] ${card.title}${subLabel}${tagsLabel}${desc}\n`;
         }
         text += '\n';
       }
@@ -303,15 +311,17 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       card_id: z.string().describe('Card ID (e.g., crd_abc123)'),
       status: z.string().describe('Target column'),
       substatus: z.string().nullable().optional().describe('Sub-status within the target column (null to clear)'),
+      tags: z.array(z.string()).optional().describe('Set tags on the card (e.g. ["bug", "urgent"])'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
     },
-    async ({ card_id, status, substatus, project_id }) => {
+    async ({ card_id, status, substatus, tags, project_id }) => {
       const path = project_id
         ? `/api/projects/${project_id}/cards/${card_id}`
         : `/api/cards/${card_id}`;
 
       const body = { status };
       if (substatus !== undefined) body.substatus = substatus;
+      if (tags !== undefined) body.tags = tags;
 
       const card = await api(path, {
         method: 'PATCH',
@@ -324,11 +334,12 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       const substatusLabels = buildSubstatusLabels(project);
       const statusLabel = columnLabels[card.status] || card.status;
       const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+      const tagsLabel = card.tags && card.tags.length > 0 ? ` ${card.tags.map(t => '#' + t).join(' ')}` : '';
 
       return {
         content: [{
           type: 'text',
-          text: `Moved "${card.title}" to ${statusLabel}${subLabel}`,
+          text: `Moved "${card.title}" to ${statusLabel}${subLabel}${tagsLabel}`,
         }],
       };
     }
@@ -375,10 +386,11 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
       for (const card of result.cards) {
         const statusLabel = columnLabels[card.status] || card.status;
         const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+        const tagsLabel = card.tags && card.tags.length > 0 ? `\n  Tags: ${card.tags.map(t => '#' + t).join(' ')}` : '';
         const desc = card.description ? `\n  Description: ${card.description}` : '';
         text += `[${card.id}] ${card.title}\n`;
         text += `  Status: ${statusLabel}${subLabel}\n`;
-        text += `  Updated: ${card.updated_at}${desc}\n\n`;
+        text += `  Updated: ${card.updated_at}${tagsLabel}${desc}\n\n`;
       }
 
       text += `Server time: ${result.server_time}\n`;
@@ -438,7 +450,8 @@ export function createLimoncelloMcpServer(baseUrl, apiKey) {
         text += `--- ${columnLabels[key]} ---\n`;
         for (const card of grouped[key].sort((a, b) => a.position - b.position)) {
           const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
-          text += `  [${card.id}] ${card.title}${subLabel}\n`;
+          const tagsLabel = card.tags && card.tags.length > 0 ? ` ${card.tags.map(t => '#' + t).join(' ')}` : '';
+          text += `  [${card.id}] ${card.title}${subLabel}${tagsLabel}\n`;
         }
         text += '\n';
       }

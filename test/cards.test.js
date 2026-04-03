@@ -990,6 +990,183 @@ describe('Cards API', () => {
     });
   });
 
+  describe('Tags', () => {
+    it('creates card with tags', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Tagged card', tags: ['bug', 'urgent'] })
+        .expect(201);
+
+      assert.deepEqual(res.body.tags, ['bug', 'urgent']);
+    });
+
+    it('creates card without tags (defaults to [])', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'No tags card' })
+        .expect(201);
+
+      assert.deepEqual(res.body.tags, []);
+    });
+
+    it('updates card tags', async () => {
+      const created = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: ['old'] })
+        .expect(201);
+
+      const res = await request(app)
+        .patch(`/api/projects/${projectId}/cards/${created.body.id}`)
+        .send({ tags: ['new', 'updated'] })
+        .expect(200);
+
+      assert.deepEqual(res.body.tags, ['new', 'updated']);
+    });
+
+    it('clears tags via empty array', async () => {
+      const created = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: ['bug'] })
+        .expect(201);
+
+      const res = await request(app)
+        .patch(`/api/projects/${projectId}/cards/${created.body.id}`)
+        .send({ tags: [] })
+        .expect(200);
+
+      assert.deepEqual(res.body.tags, []);
+    });
+
+    it('rejects non-array tags', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: 'not-an-array' })
+        .expect(400);
+
+      assert.match(res.body.error, /Tags must be an array/);
+    });
+
+    it('rejects tags with non-string elements', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: [123] })
+        .expect(400);
+
+      assert.match(res.body.error, /Each tag must be a non-empty string/);
+    });
+
+    it('rejects tags with empty strings', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: ['valid', ''] })
+        .expect(400);
+
+      assert.match(res.body.error, /Each tag must be a non-empty string/);
+    });
+
+    it('filters cards by tag query param', async () => {
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Bug card', tags: ['bug', 'v2'] })
+        .expect(201);
+
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Feature card', tags: ['feature', 'v2'] })
+        .expect(201);
+
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'No tags' })
+        .expect(201);
+
+      const bugRes = await request(app)
+        .get(`/api/projects/${projectId}/cards?tag=bug`)
+        .expect(200);
+
+      assert.equal(bugRes.body.length, 1);
+      assert.equal(bugRes.body[0].title, 'Bug card');
+
+      const v2Res = await request(app)
+        .get(`/api/projects/${projectId}/cards?tag=v2`)
+        .expect(200);
+
+      assert.equal(v2Res.body.length, 2);
+    });
+
+    it('tags persist through status changes', async () => {
+      const created = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Tagged card', status: 'backlog', tags: ['important'] })
+        .expect(201);
+
+      const res = await request(app)
+        .patch(`/api/projects/${projectId}/cards/${created.body.id}`)
+        .send({ status: 'todo' })
+        .expect(200);
+
+      assert.equal(res.body.status, 'todo');
+      assert.deepEqual(res.body.tags, ['important']);
+    });
+
+    it('tags returned in changes endpoint', async () => {
+      const startTime = new Date(Date.now() - 2000).toISOString();
+
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Tagged card', tags: ['bug'] })
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/projects/${projectId}/cards/changes?since=${startTime}`)
+        .expect(200);
+
+      assert.equal(res.body.cards.length, 1);
+      assert.deepEqual(res.body.cards[0].tags, ['bug']);
+    });
+
+    it('tags returned when getting single card', async () => {
+      const created = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Tagged card', tags: ['feature', 'v3'] })
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/projects/${projectId}/cards/${created.body.id}`)
+        .expect(200);
+
+      assert.deepEqual(res.body.tags, ['feature', 'v3']);
+    });
+
+    it('trims whitespace from tags', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Card', tags: ['  bug  ', ' urgent '] })
+        .expect(201);
+
+      assert.deepEqual(res.body.tags, ['bug', 'urgent']);
+    });
+
+    it('can filter by tag and status simultaneously', async () => {
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Bug in backlog', status: 'backlog', tags: ['bug'] })
+        .expect(201);
+
+      await request(app)
+        .post(`/api/projects/${projectId}/cards`)
+        .send({ title: 'Bug in todo', status: 'todo', tags: ['bug'] })
+        .expect(201);
+
+      const res = await request(app)
+        .get(`/api/projects/${projectId}/cards?status=todo&tag=bug`)
+        .expect(200);
+
+      assert.equal(res.body.length, 1);
+      assert.equal(res.body[0].title, 'Bug in todo');
+    });
+  });
+
   describe('edge cases', () => {
     it('handles card with very long title', async () => {
       const longTitle = 'x'.repeat(1000);

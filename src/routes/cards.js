@@ -23,6 +23,36 @@ function resolveProjectId(req) {
 }
 
 /**
+ * Helper: parse tags JSON on a card object returned from DB.
+ * Returns the card with tags as a JS array.
+ */
+function parseCardTags(card) {
+  if (!card) return card;
+  try {
+    card.tags = JSON.parse(card.tags || '[]');
+  } catch {
+    card.tags = [];
+  }
+  return card;
+}
+
+/**
+ * Helper: validate a tags value from request body.
+ * Returns { valid: true, tags: [...] } or { valid: false, error: "..." }
+ */
+function validateTags(tags) {
+  if (!Array.isArray(tags)) {
+    return { valid: false, error: 'Tags must be an array' };
+  }
+  for (const tag of tags) {
+    if (typeof tag !== 'string' || tag.trim() === '') {
+      return { valid: false, error: 'Each tag must be a non-empty string' };
+    }
+  }
+  return { valid: true, tags: tags.map(t => t.trim()) };
+}
+
+/**
  * Helper: Get the project's valid column keys
  */
 function getProjectColumns(projectId) {
@@ -89,7 +119,7 @@ router.get('/changes', (req, res) => {
   // Use datetime() to ensure ISO 8601 timestamps are properly compared
   const cards = db.prepare(
     'SELECT * FROM cards WHERE project_id = ? AND updated_at > datetime(?) ORDER BY updated_at ASC'
-  ).all(req.projectId, since);
+  ).all(req.projectId, since).map(parseCardTags);
 
   res.json({
     cards,
@@ -103,7 +133,7 @@ router.get('/changes', (req, res) => {
  * Optional ?status= query param to filter by status.
  */
 router.get('/', (req, res) => {
-  const { status } = req.query;
+  const { status, tag } = req.query;
 
   if (status && !req.validStatuses.includes(status)) {
     return res.status(400).json({ error: `Invalid status. Must be one of: ${req.validStatuses.join(', ')}` });
@@ -117,11 +147,16 @@ router.get('/', (req, res) => {
     params.push(status);
   }
 
+  if (tag) {
+    query += " AND EXISTS (SELECT 1 FROM json_each(cards.tags) WHERE json_each.value = ?)";
+    params.push(tag);
+  }
+
   // Order by column position (using the project's column order), then card position
   const columnOrder = req.validStatuses.map((key, i) => `WHEN '${key}' THEN ${i}`).join(' ');
   query += ` ORDER BY CASE status ${columnOrder} END, position`;
 
-  const cards = db.prepare(query).all(...params);
+  const cards = db.prepare(query).all(...params).map(parseCardTags);
   res.json(cards);
 });
 
@@ -133,7 +168,7 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   const defaultStatus = req.validStatuses[0];
-  const { title, description = '', status = defaultStatus, substatus } = req.body;
+  const { title, description = '', status = defaultStatus, substatus, tags } = req.body;
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
     return res.status(400).json({ error: 'Title is required and must be a non-empty string' });
@@ -155,15 +190,25 @@ router.post('/', (req, res) => {
     validatedSubstatus = substatus;
   }
 
+  // Validate tags if provided
+  let validatedTags = '[]';
+  if (tags !== undefined) {
+    const result = validateTags(tags);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.error });
+    }
+    validatedTags = JSON.stringify(result.tags);
+  }
+
   const id = cardId();
   const position = getNextPosition(req.projectId, status);
 
   db.prepare(`
-    INSERT INTO cards (id, project_id, title, description, status, substatus, position, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).run(id, req.projectId, title.trim(), description, status, validatedSubstatus, position);
+    INSERT INTO cards (id, project_id, title, description, status, substatus, tags, position, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).run(id, req.projectId, title.trim(), description, status, validatedSubstatus, validatedTags, position);
 
-  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  const card = parseCardTags(db.prepare('SELECT * FROM cards WHERE id = ?').get(id));
   broadcast(req.projectId, { type: 'card_created', card });
   res.status(201).json(card);
 });
@@ -204,7 +249,7 @@ router.patch('/reorder', (req, res) => {
  * Get a single card by ID (must belong to this project).
  */
 router.get('/:id', (req, res) => {
-  const card = db.prepare('SELECT * FROM cards WHERE id = ? AND project_id = ?').get(req.params.id, req.projectId);
+  const card = parseCardTags(db.prepare('SELECT * FROM cards WHERE id = ? AND project_id = ?').get(req.params.id, req.projectId));
 
   if (!card) {
     return res.status(404).json({ error: 'Card not found' });
@@ -220,7 +265,7 @@ router.get('/:id', (req, res) => {
  */
 router.patch('/:id', (req, res) => {
   const { id } = req.params;
-  const { title, description, status, substatus, position } = req.body;
+  const { title, description, status, substatus, position, tags } = req.body;
 
   const existingCard = db.prepare('SELECT * FROM cards WHERE id = ? AND project_id = ?').get(id, req.projectId);
   if (!existingCard) {
@@ -293,6 +338,15 @@ router.patch('/:id', (req, res) => {
     params.push(substatus);
   }
 
+  if (tags !== undefined) {
+    const result = validateTags(tags);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.error });
+    }
+    updates.push('tags = ?');
+    params.push(JSON.stringify(result.tags));
+  }
+
   if (position !== undefined) {
     updates.push('position = ?');
     params.push(position);
@@ -307,7 +361,7 @@ router.patch('/:id', (req, res) => {
 
   db.prepare(`UPDATE cards SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
-  const updatedCard = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  const updatedCard = parseCardTags(db.prepare('SELECT * FROM cards WHERE id = ?').get(id));
   broadcast(req.projectId, { type: 'card_updated', card: updatedCard });
   res.json(updatedCard);
 });

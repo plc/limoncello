@@ -22,6 +22,12 @@
     <div class="header-right"></div>
   </header>
 
+  <div class="tag-filter-bar" id="tagFilterBar" style="display: none;">
+    <span class="tag-filter-label">Filter by tag:</span>
+    <div class="tag-filter-tags" id="tagFilterTags"></div>
+    <button class="tag-filter-clear" id="tagFilterClear" style="display: none;">Clear</button>
+  </div>
+
   <div class="board" id="board"></div>
 
   <div class="modal-overlay" id="cardModal" style="display: none;">
@@ -36,6 +42,10 @@
         <div id="substatusContainer" style="display: none; margin-top: 16px;">
           <label for="modalSubstatus">Sub-status</label>
           <select id="modalSubstatus" class="text-input"></select>
+        </div>
+        <div style="margin-top: 16px;">
+          <label for="modalTags">Tags</label>
+          <input type="text" id="modalTags" class="text-input" placeholder="Comma-separated, e.g. bug, urgent, v2" />
         </div>
       </div>
       <div class="modal-footer">

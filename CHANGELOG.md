@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Tags feature: cards can have an array of string tags, stored as JSON in the database
+- Tags input in card modal (comma-separated)
+- Tag badges rendered on cards in the board view
+- Tag filter bar below the header: shows all tags in use, click to filter board by tag
+- API support for `?tag=` query parameter on card list endpoints
+- Tags test coverage (13 tests)
+
+### Removed
+- Slash commands (.claude/commands/) removed in favor of MCP tools
+
 ## 2026-04-03 (v12)
 
 ### Changed

@@ -80,6 +80,73 @@ body {
   min-width: 80px;
 }
 
+/* Tag filter bar */
+
+.tag-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  background-color: #0f1629;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.tag-filter-label {
+  font-size: 12px;
+  color: #a8b2d1;
+  white-space: nowrap;
+}
+
+.tag-filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-filter-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  background-color: #16213e;
+  color: #a8b2d1;
+  border: 1px solid #0f3460;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-filter-tag:hover {
+  background-color: #2980b9;
+  color: #fff;
+  border-color: #2980b9;
+}
+
+.tag-filter-tag.active {
+  background-color: #2980b9;
+  color: #fff;
+  border-color: #2980b9;
+}
+
+.tag-filter-clear {
+  background: transparent;
+  border: 1px solid #0f3460;
+  color: #a8b2d1;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tag-filter-clear:hover {
+  background-color: #0f3460;
+  color: #fff;
+  border-color: #4a90e2;
+}
+
 /* Board */
 
 .board {
@@ -523,6 +590,24 @@ body {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
+}
+
+/* Tag badges on cards */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #2980b9;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* Substatus editor in project modal */

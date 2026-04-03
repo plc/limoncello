@@ -9,7 +9,7 @@ Limoncello solves this by providing a simple, local-first Trello-style board whe
 ## 2. Goals
 
 - A human can open a browser, see a board with columns, and drag cards between them
-- Claude (Desktop or Code) can create a card, list cards, and move a card via MCP tools or slash commands
+- Claude (Desktop or Code) can create a card, list cards, and move a card via MCP tools
 - Cards persist across restarts (SQLite)
 - Setup: `npm install && npm run dev` gets a working board immediately
 
@@ -232,27 +232,12 @@ The `limoncello_create_project` tool accepts an optional `columns_file` paramete
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
-## 8. Claude Code Slash Commands
-
-Commands live in `.claude/commands/` and use `curl` to talk to the local API.
-
-| Command | Description |
-|---------|-------------|
-| `/limoncello-projects` | List all projects with their names, IDs, and columns |
-| `/limoncello-create-project` | Create a project with name, optional `--file <path>` to load columns from a JSON file |
-| `/limoncello-add` | Create a card with title, optional --status, --substatus, --description, and --project flags |
-| `/limoncello-list` | List cards, optionally filtered by --status and --project flags |
-| `/limoncello-move` | Move a card to a different status, with optional --substatus and --project flags |
-| `/limoncello-board` | Show board summary with card counts and listing, with optional --project flag |
-
-All card commands accept an optional `--project <project-id>` parameter. If omitted, they operate on the Default project.
-
-## 9. Deployment
+## 8. Deployment
 
 - **Local**: `npm run dev` at http://localhost:3654
 - **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume, `LIMONCELLO_API_KEY` required)
 
-## 10. Project Structure
+## 9. Project Structure
 
 ```
 src/
@@ -267,13 +252,6 @@ src/
     index.html        # Kanban board UI
     style.css         # Board styles
     app.js            # Client-side JS
-.claude/commands/
-  limoncello-projects.md         # /limoncello-projects slash command
-  limoncello-create-project.md   # /limoncello-create-project slash command
-  limoncello-add.md              # /limoncello-add slash command
-  limoncello-list.md             # /limoncello-list slash command
-  limoncello-move.md             # /limoncello-move slash command
-  limoncello-board.md            # /limoncello-board slash command
 examples/
   columns-template.json      # Example column definition file for project creation
 ```

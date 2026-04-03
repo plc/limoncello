@@ -4,7 +4,7 @@ Instructions for Claude Code. See [SPEC.md](SPEC.md) for the full product spec.
 
 ## Project Overview
 
-Limoncello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server or slash commands. Both create and manage cards on shared projects.
+Limoncello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server. Both create and manage cards on shared projects.
 
 Projects feature: Each project has its own custom columns. Cards belong to projects. The Default project provides backward compatibility.
 
@@ -51,14 +51,6 @@ src/
     index.html        # Kanban board UI
     style.css         # Board styles
     app.js            # Client-side JS
-.claude/commands/
-  limoncello-projects.md         # /limoncello-projects slash command
-  limoncello-create-project.md   # /limoncello-create-project slash command
-  limoncello-add.md              # /limoncello-add slash command
-  limoncello-list.md             # /limoncello-list slash command
-  limoncello-move.md             # /limoncello-move slash command
-  limoncello-board.md            # /limoncello-board slash command
-  limoncello-changes.md          # /limoncello-changes slash command
 examples/
   columns-template.json      # Example column definition file for project creation
 ```
@@ -144,14 +136,14 @@ All card tools accept optional `project_id` parameter (defaults to Default proje
 
 ## Working with the Limoncello Board
 
-This project tracks its own work on a Limoncello board: **Limoncello Development** (`prj_UevwwjWyYEEG`).
+This project tracks its own work on a Limoncello board: **Limoncello Dev** (`prj_vDi0hGAhCrUP`).
 
 ### On session start
 
 At the beginning of every session, check the board for current tasks:
 
 ```
-limoncello_board(project_id: "prj_UevwwjWyYEEG")
+limoncello_board(project_id: "prj_vDi0hGAhCrUP")
 ```
 
 Or use `limoncello_changes` with a `since` timestamp if you know when your last session ended. The `server_time` in the response can be stored and reused as `since` next time.

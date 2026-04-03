@@ -45,6 +45,7 @@ describe('Database schema', () => {
         'description',
         'status',
         'substatus',
+        'tags',
         'position',
         'created_at',
         'updated_at'

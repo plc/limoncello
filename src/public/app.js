@@ -5,6 +5,7 @@ let cards = [];
 let currentCard = null;
 let draggedCard = null;
 let sourceColumn = null;
+let activeTagFilter = null;
 
 // Auth -- stored in localStorage, prompted on 401
 function getApiKey() {
@@ -94,6 +95,7 @@ function selectProject(project) {
   currentProject = project;
   saveProjectId(project.id);
   document.getElementById('projectSelect').value = project.id;
+  activeTagFilter = null;
   wsSubscribe(project.id);
   renderColumns();
   loadCards();
@@ -233,9 +235,15 @@ function renderBoard() {
     const container = document.querySelector(`.cards-container[data-status="${col.key}"]`);
     if (!container) return;
 
-    const columnCards = cards
+    let columnCards = cards
       .filter(card => card.status === col.key)
       .sort((a, b) => a.position - b.position);
+
+    if (activeTagFilter) {
+      columnCards = columnCards.filter(card =>
+        (card.tags || []).includes(activeTagFilter)
+      );
+    }
 
     container.innerHTML = '';
     columnCards.forEach(card => {
@@ -245,6 +253,57 @@ function renderBoard() {
 
     updateCardCount(col.key, columnCards.length);
   });
+
+  renderTagFilterBar();
+}
+
+function collectAllTags() {
+  const tagSet = new Set();
+  for (const card of cards) {
+    for (const tag of (card.tags || [])) {
+      tagSet.add(tag);
+    }
+  }
+  return Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+}
+
+function renderTagFilterBar() {
+  const bar = document.getElementById('tagFilterBar');
+  const container = document.getElementById('tagFilterTags');
+  const clearBtn = document.getElementById('tagFilterClear');
+  const allTags = collectAllTags();
+
+  if (allTags.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+  container.innerHTML = '';
+
+  for (const tag of allTags) {
+    const pill = document.createElement('button');
+    pill.className = 'tag-filter-tag';
+    if (activeTagFilter === tag) pill.classList.add('active');
+    pill.textContent = tag;
+    pill.addEventListener('click', () => {
+      if (activeTagFilter === tag) {
+        activeTagFilter = null;
+      } else {
+        activeTagFilter = tag;
+      }
+      renderBoard();
+      renderTagFilterBar();
+    });
+    container.appendChild(pill);
+  }
+
+  clearBtn.style.display = activeTagFilter ? 'inline-block' : 'none';
+  clearBtn.onclick = () => {
+    activeTagFilter = null;
+    renderBoard();
+    renderTagFilterBar();
+  };
 }
 
 function createCardElement(card) {
@@ -273,6 +332,19 @@ function createCardElement(card) {
     const sub = col && (col.substatuses || []).find(s => s.key === card.substatus);
     badge.textContent = sub ? sub.label : card.substatus;
     cardEl.appendChild(badge);
+  }
+
+  const tags = card.tags || [];
+  if (tags.length > 0) {
+    const tagsContainer = document.createElement('div');
+    tagsContainer.className = 'tags-container';
+    for (const tag of tags) {
+      const badge = document.createElement('span');
+      badge.className = 'tag-badge';
+      badge.textContent = tag;
+      tagsContainer.appendChild(badge);
+    }
+    cardEl.appendChild(tagsContainer);
   }
 
   cardEl.addEventListener('click', () => openCardModal(card));
@@ -472,6 +544,11 @@ function openCardModal(card) {
   title.textContent = card.title;
   description.value = card.description || '';
 
+  // Tags input
+  const tagsInput = document.getElementById('modalTags');
+  const tags = card.tags || [];
+  tagsInput.value = tags.join(', ');
+
   // Substatus dropdown
   const substatusContainer = document.getElementById('substatusContainer');
   const col = currentProject.columns.find(c => c.key === card.status);
@@ -513,6 +590,13 @@ async function saveCurrentCard() {
   }
 
   const updates = { title, description };
+
+  // Parse tags from comma-separated input
+  const tagsRaw = document.getElementById('modalTags').value;
+  updates.tags = tagsRaw
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t !== '');
 
   // Include substatus if the container is visible
   const substatusContainer = document.getElementById('substatusContainer');

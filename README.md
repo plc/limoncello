@@ -1,6 +1,6 @@
 # Limoncello
 
-A local-first Kanban board for human-AI collaboration. Humans manage cards via a web UI, Claude manages them via MCP tools or slash commands. Both share the same board.
+A local-first Kanban board for human-AI collaboration. Humans manage cards via a web UI, Claude manages them via MCP tools. Both share the same board.
 
 ## Quick Start
 
@@ -20,7 +20,6 @@ Open http://localhost:3654 in your browser.
 - Create, edit, and delete cards from the web UI
 - Project management: create projects, define custom columns, switch between projects
 - MCP server for Claude Desktop and Claude Code integration
-- Slash commands for Claude Code
 - SQLite database -- zero configuration, data persists in `./data/limoncello.db`
 - Deployable to Fly.io with persistent volume and bearer token auth
 
@@ -68,21 +67,6 @@ For local use without auth, set `LIMONCELLO_URL` to `http://localhost:3654` and 
 The `limoncello_create_project` tool accepts an optional `columns_file` parameter -- a path to a JSON file defining the project's name and columns. See `examples/columns-template.json` for the format.
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
-
-## Slash Commands (Claude Code)
-
-With the Limoncello server running, use these slash commands in Claude Code:
-
-| Command | Description |
-|---------|-------------|
-| `/limoncello-projects` | List all projects |
-| `/limoncello-create-project "name" [--file <path>]` | Create a project (optionally from a JSON file) |
-| `/limoncello-add "title" [--status todo] [--substatus key] [--description "..."] [--project <id>]` | Create a card |
-| `/limoncello-list [--status in_progress] [--project <id>]` | List cards |
-| `/limoncello-move <card-id> <status> [--substatus key] [--project <id>]` | Move a card |
-| `/limoncello-board [--project <id>]` | Board overview |
-
-All card commands accept an optional `--project <project-id>` parameter. If omitted, they operate on the Default project.
 
 ## API
 
