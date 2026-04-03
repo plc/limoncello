@@ -7,75 +7,180 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Jost', system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    a { color: #ffd166; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #0f0f1a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85em;
+      line-height: 1.5;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    header h1 {
+      font-size: 2.8em;
+      font-weight: 700;
+      color: #ffd166;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      font-size: 1.15em;
+      color: #a0a0b8;
+      margin-top: 8px;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+    section h2 {
+      font-size: 1.4em;
+      font-weight: 600;
+      color: #ffd166;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 209, 102, 0.2);
+    }
+    section p {
+      margin-bottom: 12px;
+    }
+    section ul {
+      list-style: none;
+      margin-bottom: 12px;
+    }
+    section ul li {
+      padding: 4px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+    section ul li::before {
+      content: '-';
+      position: absolute;
+      left: 4px;
+      color: #ffd166;
+    }
+
+    .cta {
+      display: inline-block;
+      background: #ffd166;
+      color: #1a1a2e;
+      font-weight: 600;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 1em;
+      margin-top: 8px;
+    }
+    .cta:hover { text-decoration: none; opacity: 0.9; }
+
+    footer {
+      text-align: center;
+      color: #555;
+      font-size: 0.85em;
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+  </style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-left">
-      <h1 class="app-title">Limoncello</h1>
-    </div>
-    <div class="header-center">
-      <select id="projectSelect" class="project-select"></select>
-      <button class="header-btn" id="newProjectBtn" title="New project">+</button>
-      <button class="header-btn" id="editProjectBtn" title="Project settings">&#9881;</button>
-    </div>
-    <div class="header-right"></div>
-  </header>
+  <div class="container">
+    <header>
+      <h1>Limoncello</h1>
+      <p>Local-first Kanban board for human-AI collaboration</p>
+    </header>
 
-  <div class="tag-filter-bar" id="tagFilterBar" style="display: none;">
-    <span class="tag-filter-label">Filter by tag:</span>
-    <div class="tag-filter-tags" id="tagFilterTags"></div>
-    <button class="tag-filter-clear" id="tagFilterClear" style="display: none;">Clear</button>
+    <section id="for-agents">
+      <h2>For Agents</h2>
+      <p>
+        Limoncello exposes a self-describing API manual at
+        <a href="/api/man"><code>GET /api/man</code></a>.
+        Hit that endpoint first -- it documents every route, schema,
+        WebSocket protocol, and MCP tool in a single JSON response.
+      </p>
+      <p>MCP tools available:</p>
+      <ul>
+        <li><code>limoncello_projects</code> -- list projects and columns</li>
+        <li><code>limoncello_add</code> -- create a card</li>
+        <li><code>limoncello_list</code> -- list cards (with optional filters)</li>
+        <li><code>limoncello_move</code> -- move a card between columns</li>
+        <li><code>limoncello_board</code> -- board summary with counts</li>
+        <li><code>limoncello_changes</code> -- poll for recent changes</li>
+        <li><code>limoncello_create_project</code> -- create a project</li>
+      </ul>
+      <p>Quick REST example:</p>
+<pre><code>curl http://localhost:3654/api/cards \
+  -H "Content-Type: application/json" \
+  -d '{"title": "My first card", "status": "todo"}'</code></pre>
+    </section>
+
+    <section id="for-humans">
+      <h2>For Humans</h2>
+      <p>
+        The Kanban board lives at <a href="/board"><code>/board</code></a>.
+        Drag cards between columns, create projects with custom workflows,
+        and filter by tags. Changes sync in real time via WebSocket.
+      </p>
+      <a class="cta" href="/board">Open the Board</a>
+    </section>
+
+    <section id="quick-start">
+      <h2>Quick Start</h2>
+<pre><code>npm install
+npm run dev          # board at http://localhost:3654/board</code></pre>
+      <p>Connect Claude Code via MCP (remote):</p>
+<pre><code>claude mcp add limoncello -s user --transport http \
+  --header "Authorization: Bearer &lt;key&gt;" \
+  -- https://limoncello.fly.dev/mcp</code></pre>
+      <p>Or locally (STDIO):</p>
+<pre><code>{
+  "mcpServers": {
+    "limoncello": {
+      "command": "node",
+      "args": ["src/mcp.mjs"],
+      "env": {
+        "LIMONCELLO_URL": "http://localhost:3654",
+        "LIMONCELLO_API_KEY": "&lt;key&gt;"
+      }
+    }
+  }
+}</code></pre>
+    </section>
+
+    <footer>
+      Limoncello v1.0
+    </footer>
   </div>
-
-  <div class="board" id="board"></div>
-
-  <div class="modal-overlay" id="cardModal" style="display: none;">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 contenteditable="true" id="modalTitle" class="editable-title"></h3>
-        <button class="close-btn" id="closeModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label>Description</label>
-        <textarea id="modalDescription" rows="6"></textarea>
-        <div id="substatusContainer" style="display: none; margin-top: 16px;">
-          <label for="modalSubstatus">Sub-status</label>
-          <select id="modalSubstatus" class="text-input"></select>
-        </div>
-        <div style="margin-top: 16px;">
-          <label for="modalTags">Tags</label>
-          <input type="text" id="modalTags" class="text-input" placeholder="Comma-separated, e.g. bug, urgent, v2" />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="delete-btn" id="deleteCard">Delete</button>
-        <button class="save-btn" id="saveCard">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="projectModal" style="display: none;">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="projectModalTitle">Project Settings</h3>
-        <button class="close-btn" id="closeProjectModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label for="projectName">Project Name</label>
-        <input type="text" id="projectName" class="text-input" />
-
-        <label style="margin-top: 16px; display: block;">Columns</label>
-        <div id="columnsEditor" class="columns-editor"></div>
-        <button class="add-column-btn" id="addColumnBtn">+ Add column</button>
-      </div>
-      <div class="modal-footer">
-        <button class="delete-btn" id="deleteProject">Delete Project</button>
-        <button class="save-btn" id="saveProject">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
 </body>
 </html>

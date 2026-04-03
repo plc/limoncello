@@ -18,6 +18,7 @@ const express = require('express');
 const { db, initSchema, DEFAULT_COLUMNS } = require('../src/db');
 const projectsRouter = require('../src/routes/projects');
 const cardsRouter = require('../src/routes/cards');
+const { manHandler } = require('../src/routes/man');
 
 // Initialize schema once per process
 initSchema();
@@ -34,6 +35,9 @@ function createApp() {
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // API manual
+  app.get('/api/man', manHandler);
 
   // Project routes
   app.use('/api/projects', projectsRouter);

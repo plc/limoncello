@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- Homepage at `/` -- static landing page explaining Limoncello for both humans and agents
+- Homepage links to `/api/man` (agent discovery) and `/board` (web UI)
+- `GET /board` route serves the Kanban board (previously at `/`)
+- Homepage tests (16 tests)
+- Self-describing API manual at `GET /api/man` -- returns structured JSON documenting every endpoint, schema, concept, WebSocket protocol, and MCP tool
+- No auth required on `/api/man` (like `/health`)
+- Manual includes 21 endpoints, project/card schemas, authentication docs, error format, and MCP tool reference
+- Test suite for API manual (11 tests)
 - Tags feature: cards can have an array of string tags, stored as JSON in the database
 - Tags input in card modal (comma-separated)
 - Tag badges rendered on cards in the board view

@@ -12,7 +12,7 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 
 ## Deployment
 
-- **Local**: `npm run dev` -- board at http://localhost:3654
+- **Local**: `npm run dev` -- homepage at http://localhost:3654, board at http://localhost:3654/board
 - **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume)
 - **Auth**: Bearer token via `LIMONCELLO_API_KEY` env var. Required on Fly.io, optional locally.
 
@@ -29,6 +29,8 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **Auth**: Bearer token via `LIMONCELLO_API_KEY` (optional; if unset, no auth required)
 - **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
 - **Backward compat**: `/api/cards` routes to Default project
+- **Homepage**: Static landing page at `/` (`src/public/index.html`) -- links to `/board` and `/api/man`
+- **Board**: Kanban UI at `/board` (`src/public/board.html`) -- served via explicit route and static middleware
 - **UI**: Vanilla HTML/CSS/JS served from `src/public/`, dynamic columns based on selected project
 - **MCP (STDIO)**: `src/mcp.mjs` -- STDIO transport entry point for local subprocess use
 - **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use
@@ -48,7 +50,8 @@ src/
   routes/projects.js  # Project CRUD API
   routes/cards.js     # Card CRUD API (broadcasts via WebSocket on mutations)
   public/
-    index.html        # Kanban board UI
+    index.html        # Homepage (static, inline styles, no JS)
+    board.html        # Kanban board UI (served at /board)
     style.css         # Board styles
     app.js            # Client-side JS
 examples/
@@ -188,6 +191,7 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /health | Health check (no auth) |
+| GET | /api/man | Self-describing API manual (no auth) |
 | GET | /api/cards | List cards in Default project (optional `?status=`) |
 | GET | /api/cards/changes | Get cards changed since timestamp (required `?since=<ISO8601>`) |
 | POST | /api/cards | Create card in Default project |

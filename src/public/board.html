@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limoncello</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title">Limoncello</h1>
+    </div>
+    <div class="header-center">
+      <select id="projectSelect" class="project-select"></select>
+      <button class="header-btn" id="newProjectBtn" title="New project">+</button>
+      <button class="header-btn" id="editProjectBtn" title="Project settings">&#9881;</button>
+    </div>
+    <div class="header-right"></div>
+  </header>
+
+  <div class="tag-filter-bar" id="tagFilterBar" style="display: none;">
+    <span class="tag-filter-label">Filter by tag:</span>
+    <div class="tag-filter-tags" id="tagFilterTags"></div>
+    <button class="tag-filter-clear" id="tagFilterClear" style="display: none;">Clear</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="modal-overlay" id="cardModal" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 contenteditable="true" id="modalTitle" class="editable-title"></h3>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Description</label>
+        <textarea id="modalDescription" rows="6"></textarea>
+        <div id="substatusContainer" style="display: none; margin-top: 16px;">
+          <label for="modalSubstatus">Sub-status</label>
+          <select id="modalSubstatus" class="text-input"></select>
+        </div>
+        <div style="margin-top: 16px;">
+          <label for="modalTags">Tags</label>
+          <input type="text" id="modalTags" class="text-input" placeholder="Comma-separated, e.g. bug, urgent, v2" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="delete-btn" id="deleteCard">Delete</button>
+        <button class="save-btn" id="saveCard">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="projectModal" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="projectModalTitle">Project Settings</h3>
+        <button class="close-btn" id="closeProjectModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="projectName">Project Name</label>
+        <input type="text" id="projectName" class="text-input" />
+
+        <label style="margin-top: 16px; display: block;">Columns</label>
+        <div id="columnsEditor" class="columns-editor"></div>
+        <button class="add-column-btn" id="addColumnBtn">+ Add column</button>
+      </div>
+      <div class="modal-footer">
+        <button class="delete-btn" id="deleteProject">Delete Project</button>
+        <button class="save-btn" id="saveProject">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

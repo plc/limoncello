@@ -23,6 +23,7 @@ const { setup: setupWebSocket } = require('./ws');
 const { db, initSchema } = require('./db');
 const projectsRouter = require('./routes/projects');
 const cardsRouter = require('./routes/cards');
+const { manHandler } = require('./routes/man');
 
 const app = express();
 const port = process.env.PORT || 3654;
@@ -61,10 +62,18 @@ function requireAuth(req, res, next) {
 // Static files (web UI) -- served before auth so the board is accessible
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Board route -- serves board.html at /board
+app.get('/board', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'board.html'));
+});
+
 // Health checks (no auth)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// API manual (no auth)
+app.get('/api/man', manHandler);
 
 // Project API (auth required if LIMONCELLO_API_KEY is set)
 app.use('/api/projects', requireAuth, projectsRouter);
