@@ -4,7 +4,7 @@
 
 When working with AI agents (Claude Code in particular), there is no lightweight way to share a structured task list between human and AI. The human thinks "we need to do X, Y, Z" but communicates this ad hoc in conversation. The AI thinks "I should also do A, B, C" but has no persistent place to track it.
 
-Limoncello solves this by providing a simple, local-first Trello-style board where both humans and AI agents can create, view, move, and manage cards.
+Limoncello solves this by providing a simple Trello-style board where both humans and AI agents can create, view, move, and manage cards.
 
 ## 2. Goals
 
@@ -234,8 +234,8 @@ All card tools accept an optional `project_id` parameter. If omitted, they opera
 
 ## 8. Deployment
 
-- **Local**: `npm run dev` at http://localhost:3654
 - **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume, `LIMONCELLO_API_KEY` required)
+- **Development**: `npm run dev` at http://localhost:3654
 
 ## 9. Project Structure
 

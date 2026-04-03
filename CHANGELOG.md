@@ -19,6 +19,12 @@
 - Tags test coverage (13 tests)
 
 ### Changed
+- Documentation repositioned Limoncello as a hosted webapp at https://limoncello.fly.dev
+- README.md restructured: Getting Started section leads with web UI and MCP setup (not npm install)
+- README.md now clearly separates user-facing content from developer/contributor content (Development section at bottom)
+- Removed "local-first" terminology from README.md, CLAUDE.md, and SPEC.md
+- SPEC.md deployment section now lists Production first, Development second
+- CLAUDE.md updated: added `limoncello_onboard` to MCP tools list, added `routes/man.js` to project structure
 - Homepage rewritten for hosted webapp audience at https://limoncello.fly.dev
 - Removed "Local-first" from tagline (now "Kanban board for human-AI collaboration")
 - Updated REST API example to use production URL with Authorization header

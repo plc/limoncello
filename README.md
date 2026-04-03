@@ -1,35 +1,18 @@
 # Limoncello
 
-A local-first Kanban board for human-AI collaboration. Humans manage cards via a web UI, Claude manages them via MCP tools. Both share the same board.
+Kanban board for human-AI collaboration. Humans use the web board, agents use MCP tools. Both share the same board.
 
-## Quick Start
+## Getting Started
 
-```bash
-npm install
-npm run dev
-```
+### Web UI
 
-Open http://localhost:3654 in your browser.
+Open the Kanban board at https://limoncello.fly.dev/board
 
-## Features
+Create projects, define custom columns, drag cards between columns, and manage your workflow from the browser.
 
-- Multiple projects with custom columns per project
-- Sub-statuses per column (e.g., Blocked with Human Review / Agent Review)
-- Dynamic Kanban board that adapts to each project's column configuration
-- Drag-and-drop cards between columns and reorder within columns
-- Create, edit, and delete cards from the web UI
-- Project management: create projects, define custom columns, switch between projects
-- MCP server for Claude Desktop and Claude Code integration
-- SQLite database -- zero configuration, data persists in `./data/limoncello.db`
-- Deployable to Fly.io with persistent volume and bearer token auth
+### MCP Setup
 
-## MCP Server (Claude Desktop / Claude Code)
-
-The MCP server lets Claude create, list, move, and view cards as part of its workflow. Two transports are available:
-
-### Remote (Streamable HTTP -- recommended)
-
-Connect Claude Code directly to a deployed Limoncello instance. No local process needed:
+Connect Claude to Limoncello via the MCP HTTP transport:
 
 ```bash
 claude mcp add limoncello -s user --transport http \
@@ -37,40 +20,33 @@ claude mcp add limoncello -s user --transport http \
   -- https://limoncello.fly.dev/mcp
 ```
 
-The `/mcp` endpoint supports the MCP Streamable HTTP transport with stateful sessions. Auth uses the same `LIMONCELLO_API_KEY` bearer token as the REST API.
+Once connected, Claude can create, list, move, and view cards as part of its workflow.
 
-### Local (STDIO)
+### REST API
 
-Add to your Claude Desktop config (`claude_desktop_config.json`) or Claude Code project config:
+API documentation is available at https://limoncello.fly.dev/api/man
 
-```json
-{
-  "mcpServers": {
-    "limoncello": {
-      "command": "node",
-      "args": ["/path/to/limoncello/src/mcp.mjs"],
-      "env": {
-        "LIMONCELLO_URL": "https://limoncello.fly.dev",
-        "LIMONCELLO_API_KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
+All endpoints require `Authorization: Bearer <your-api-key>` header.
 
-For local use without auth, set `LIMONCELLO_URL` to `http://localhost:3654` and omit `LIMONCELLO_API_KEY`.
+## MCP Tools
 
-### Tools
+The MCP server provides these tools for Claude:
 
-`limoncello_projects`, `limoncello_create_project`, `limoncello_add`, `limoncello_list`, `limoncello_move`, `limoncello_board`
-
-The `limoncello_create_project` tool accepts an optional `columns_file` parameter -- a path to a JSON file defining the project's name and columns. See `examples/columns-template.json` for the format.
+| Tool | Description |
+|------|-------------|
+| `limoncello_projects` | List all projects with their names, IDs, and columns |
+| `limoncello_create_project` | Create a project with name and optional custom columns |
+| `limoncello_add` | Create a card with title, optional status, substatus, description, and project_id |
+| `limoncello_list` | List cards, optionally filtered by status and project_id |
+| `limoncello_move` | Move a card to a different status, with optional substatus and project_id |
+| `limoncello_board` | Show board summary with card counts and listings, with optional project_id |
+| `limoncello_changes` | Get cards that have changed since a given timestamp |
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
-## API
+## REST API
 
-When `LIMONCELLO_API_KEY` is set, requests require `Authorization: Bearer <key>` header.
+All requests require `Authorization: Bearer <your-api-key>` header.
 
 ### Project Endpoints
 
@@ -107,9 +83,20 @@ For backward compatibility, `/api/cards` routes to the Default project:
 | DELETE | /api/cards/:id | Delete a card |
 | PATCH | /api/cards/reorder | Batch update positions |
 
-## Deployment
+## Development
 
-Deployed at https://limoncello.fly.dev
+For contributors and local development:
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3654 in your browser.
+
+### Deployment
+
+Deployed to https://limoncello.fly.dev via Fly.io:
 
 ```bash
 fly deploy

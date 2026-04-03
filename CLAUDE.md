@@ -4,7 +4,7 @@ Instructions for Claude Code. See [SPEC.md](SPEC.md) for the full product spec.
 
 ## Project Overview
 
-Limoncello is a local-first Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server. Both create and manage cards on shared projects.
+Limoncello is a Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server. Both create and manage cards on shared projects.
 
 Projects feature: Each project has its own custom columns. Cards belong to projects. The Default project provides backward compatibility.
 
@@ -49,6 +49,7 @@ src/
   lib/ids.js          # Card and project ID generation (crd_, prj_ prefixes)
   routes/projects.js  # Project CRUD API
   routes/cards.js     # Card CRUD API (broadcasts via WebSocket on mutations)
+  routes/man.js       # Self-describing API manual endpoint
   public/
     index.html        # Homepage (static, inline styles, no JS)
     board.html        # Kanban board UI (served at /board)
@@ -133,7 +134,7 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 }
 ```
 
-MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`
+MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`, `limoncello_onboard` (generate onboarding plan for a project)
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
