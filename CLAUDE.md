@@ -14,7 +14,7 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 
 - **Local**: `npm run dev` -- homepage at http://localhost:3654, board at http://localhost:3654/board
 - **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume)
-- **Auth**: Bearer token via `LIMONCELLO_API_KEY` env var. Required on Fly.io, optional locally.
+- **Auth**: Three-tier model -- admin key (env var), agent keys (database-backed `lmn_` prefix), or open mode (no auth configured). See Key Architecture below.
 
 ## Key Architecture
 
@@ -24,9 +24,10 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **Cards table**: Cards belong to projects via `project_id` foreign key
 - **Default project**: Created on first run for backward compatibility
 - **Sub-statuses**: Columns can define optional sub-statuses. Cards have nullable `substatus` field, validated against column definition
-- **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects (`src/lib/ids.js`)
+- **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects, `key_` prefix for API keys (`src/lib/ids.js`)
 - **Port**: 3654
-- **Auth**: Bearer token via `LIMONCELLO_API_KEY` (optional; if unset, no auth required)
+- **Auth**: Three-tier: (1) admin key from `LIMONCELLO_API_KEY` env var -- full access including key management; (2) agent keys from `api_keys` table -- full project/card access, no key management; (3) open mode -- if no admin key and no agent keys exist, all routes are open (local dev)
+- **API keys**: `POST /api/keys` is unauthenticated and rate-limited (10/min/IP). Keys use `lmn_` prefix + 48 chars. Only SHA-256 hash stored. Plaintext returned once at creation. `GET /api/keys` and `DELETE /api/keys/:id` are admin-only.
 - **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
 - **Backward compat**: `/api/cards` routes to Default project
 - **Homepage**: Static landing page at `/` (`src/public/index.html`) -- links to `/board` and `/api/man`
@@ -46,9 +47,10 @@ src/
   ws.js               # WebSocket server -- real-time broadcast to connected browsers
   mcp.mjs             # MCP server entry point (STDIO transport)
   mcp-tools.mjs       # Shared MCP tool definitions (used by both transports)
-  lib/ids.js          # Card and project ID generation (crd_, prj_ prefixes)
+  lib/ids.js          # Card, project, and key ID generation (crd_, prj_, key_ prefixes)
   routes/projects.js  # Project CRUD API
   routes/cards.js     # Card CRUD API (broadcasts via WebSocket on mutations)
+  routes/keys.js      # API key management (bootstrap, list, revoke)
   routes/man.js       # Self-describing API manual endpoint
   public/
     index.html        # Homepage (static, inline styles, no JS)
@@ -134,7 +136,7 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 }
 ```
 
-MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`, `limoncello_onboard` (generate onboarding plan for a project)
+MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`, `limoncello_onboard` (generate onboarding plan for a project), `limoncello_bootstrap` (provision API keys)
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
@@ -186,6 +188,14 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 | PATCH | /api/projects/:projectId/cards/:id | Update card (substatus auto-clears on column change) |
 | DELETE | /api/projects/:projectId/cards/:id | Delete card |
 | PATCH | /api/projects/:projectId/cards/reorder | Batch update positions |
+
+### Key Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/keys | Create agent key (no auth, rate-limited 10/min/IP) |
+| GET | /api/keys | List all agent keys (admin only) |
+| DELETE | /api/keys/:id | Revoke agent key (admin only) |
 
 ### Backward Compatibility (Default project)
 

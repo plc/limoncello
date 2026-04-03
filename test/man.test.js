@@ -61,10 +61,14 @@ describe('API Manual (GET /api/man)', () => {
     const auth = res.body.authentication;
     assert.equal(auth.type, 'bearer');
     assert.equal(auth.header, 'Authorization');
-    assert.equal(auth.env_var, 'LIMONCELLO_API_KEY');
+    assert.ok(Array.isArray(auth.types), 'authentication should list credential types');
+    const typeNames = auth.types.map(t => t.type);
+    assert.ok(typeNames.includes('admin'), 'should document admin key type');
+    assert.ok(typeNames.includes('agent'), 'should document agent key type');
     assert.ok(Array.isArray(auth.unauthenticated_endpoints));
     assert.ok(auth.unauthenticated_endpoints.includes('GET /api/man'));
     assert.ok(auth.unauthenticated_endpoints.includes('GET /health'));
+    assert.ok(auth.unauthenticated_endpoints.includes('POST /api/keys'));
   });
 
   it('lists itself in its own endpoints array', async () => {
@@ -79,13 +83,13 @@ describe('API Manual (GET /api/man)', () => {
     assert.equal(manEndpoint.auth, false);
   });
 
-  it('contains exactly 21 endpoints', async () => {
+  it('contains exactly 24 endpoints', async () => {
     const res = await request(app)
       .get('/api/man')
       .expect(200);
 
-    assert.equal(res.body.endpoints.length, 21,
-      `Expected 21 endpoints, got ${res.body.endpoints.length}: ${res.body.endpoints.map(e => `${e.method} ${e.path}`).join(', ')}`);
+    assert.equal(res.body.endpoints.length, 24,
+      `Expected 24 endpoints, got ${res.body.endpoints.length}: ${res.body.endpoints.map(e => `${e.method} ${e.path}`).join(', ')}`);
   });
 
   it('every endpoint has method, path, and summary', async () => {
@@ -137,7 +141,7 @@ describe('API Manual (GET /api/man)', () => {
     assert.equal(mcp.http_endpoint, '/mcp');
     assert.ok(mcp.stdio_command);
     assert.ok(Array.isArray(mcp.tools));
-    assert.equal(mcp.tools.length, 7);
+    assert.equal(mcp.tools.length, 8);
 
     const toolNames = mcp.tools.map(t => t.name);
     assert.ok(toolNames.includes('limoncello_projects'));
@@ -147,6 +151,7 @@ describe('API Manual (GET /api/man)', () => {
     assert.ok(toolNames.includes('limoncello_board'));
     assert.ok(toolNames.includes('limoncello_changes'));
     assert.ok(toolNames.includes('limoncello_create_project'));
+    assert.ok(toolNames.includes('limoncello_bootstrap'));
   });
 
   it('exported manual object matches endpoint response', async () => {

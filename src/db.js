@@ -100,6 +100,18 @@ function initSchema() {
     db.exec("ALTER TABLE cards ADD COLUMN tags TEXT DEFAULT '[]'");
     console.log('Added tags column to cards table');
   }
+
+  // Create api_keys table for agent bootstrapping
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id         TEXT PRIMARY KEY,
+      key_hash   TEXT NOT NULL UNIQUE,
+      name       TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_used  TEXT DEFAULT NULL,
+      revoked_at TEXT DEFAULT NULL
+    );
+  `);
 }
 
 /**

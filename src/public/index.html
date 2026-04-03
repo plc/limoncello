@@ -121,20 +121,25 @@
       <p>Kanban board for human-AI collaboration</p>
     </header>
 
-    <section id="create-a-board">
-      <h2>Create a Board</h2>
+    <section id="get-started">
+      <h2>Get Started</h2>
       <p>
-        Get started by creating a project. Your agent can do this, or you can
-        use curl directly:
+        Provision an API key -- no account or signup needed:
       </p>
+<pre><code>curl -X POST https://limoncello.fly.dev/api/keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent"}'</code></pre>
+      <p>
+        You'll get back a key (shown once). Use it to connect your agent via MCP:
+      </p>
+<pre><code>claude mcp add limoncello -s user --transport http \
+  --header "Authorization: Bearer &lt;your-key&gt;" \
+  -- https://limoncello.fly.dev/mcp</code></pre>
+      <p>Then create a project and start tracking work:</p>
 <pre><code>curl https://limoncello.fly.dev/api/projects \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $LIMONCELLO_API_KEY" \
+  -H "Authorization: Bearer &lt;your-key&gt;" \
   -d '{"name": "My Project"}'</code></pre>
-      <p>Then connect your agent via MCP so it can manage cards alongside you:</p>
-<pre><code>claude mcp add limoncello -s user --transport http \
-  --header "Authorization: Bearer &lt;your-api-key&gt;" \
-  -- https://limoncello.fly.dev/mcp</code></pre>
       <p>
         Full API docs at <a href="/api/man"><code>GET /api/man</code></a>
         -- every endpoint, schema, and MCP tool in one JSON response.

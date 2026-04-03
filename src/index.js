@@ -15,7 +15,7 @@
  */
 
 const crypto = require('node:crypto');
-const http = require('http');
+const http = require('node:http');
 const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
@@ -23,6 +23,8 @@ const { setup: setupWebSocket } = require('./ws');
 const { db, initSchema } = require('./db');
 const projectsRouter = require('./routes/projects');
 const cardsRouter = require('./routes/cards');
+const keysRouter = require('./routes/keys');
+const { hashKey } = require('./routes/keys');
 const { manHandler } = require('./routes/man');
 
 const app = express();
@@ -42,21 +44,72 @@ app.use(helmet({
 }));
 app.use(express.json());
 
-// Auth middleware -- if LIMONCELLO_API_KEY is set, require Bearer token on /api/* and /mcp routes
-const apiKey = process.env.LIMONCELLO_API_KEY;
+// Auth middleware -- supports admin key (env var), agent keys (database), or open mode
+const adminKey = process.env.LIMONCELLO_API_KEY;
 
 // Reject API keys that look like third-party credentials (Stripe, etc.)
-if (apiKey && /^(sk|pk|rk)_(live|test)_/i.test(apiKey)) {
+if (adminKey && /^(sk|pk|rk)_(live|test)_/i.test(adminKey)) {
   console.error('LIMONCELLO_API_KEY looks like a Stripe key. Use a dedicated key for Limoncello, not a third-party credential.');
   process.exit(1);
 }
-function requireAuth(req, res, next) {
-  if (!apiKey) return next();
+
+/**
+ * Check if any auth is configured (admin key or agent keys in DB).
+ * When no auth is configured at all, all routes are open (local dev mode).
+ */
+function isAuthConfigured() {
+  if (adminKey) return true;
+  const row = db.prepare('SELECT COUNT(*) as count FROM api_keys WHERE revoked_at IS NULL').get();
+  return row.count > 0;
+}
+
+/**
+ * Authenticate a request. Sets req.authRole to 'admin' or 'agent'.
+ * Returns true if authenticated, false otherwise.
+ */
+function authenticate(req) {
   const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${apiKey}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!auth || !auth.startsWith('Bearer ')) return false;
+
+  const token = auth.slice(7);
+  if (!token) return false;
+
+  // Check admin key first
+  if (adminKey && token === adminKey) {
+    req.authRole = 'admin';
+    return true;
   }
-  next();
+
+  // Check agent keys in database
+  const hash = hashKey(token);
+  const agentKey = db.prepare(
+    'SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL'
+  ).get(hash);
+
+  if (agentKey) {
+    req.authRole = 'agent';
+    req.agentKeyId = agentKey.id;
+    // Update last_used asynchronously (fire-and-forget)
+    db.prepare("UPDATE api_keys SET last_used = datetime('now') WHERE id = ?").run(agentKey.id);
+    return true;
+  }
+
+  return false;
+}
+
+function requireAuth(req, res, next) {
+  if (!isAuthConfigured()) return next();
+  if (authenticate(req)) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+
+function requireAdmin(req, res, next) {
+  if (!isAuthConfigured()) return next();
+  if (authenticate(req) && req.authRole === 'admin') return next();
+  if (req.authRole === 'agent') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  return res.status(401).json({ error: 'Unauthorized' });
 }
 
 // Static files (web UI) -- served before auth so the board is accessible
@@ -75,7 +128,13 @@ app.get('/health', (req, res) => {
 // API manual (no auth)
 app.get('/api/man', manHandler);
 
-// Project API (auth required if LIMONCELLO_API_KEY is set)
+// Key bootstrapping: POST is unauthenticated (rate-limited inside router)
+// GET and DELETE require admin
+app.post('/api/keys', keysRouter);
+app.get('/api/keys', requireAdmin, keysRouter);
+app.delete('/api/keys/:id', requireAdmin, keysRouter);
+
+// Project API (auth required if any auth is configured)
 app.use('/api/projects', requireAuth, projectsRouter);
 
 // Card API -- project-scoped
@@ -153,7 +212,7 @@ async function start() {
       };
 
       const mcpBaseUrl = `http://localhost:${port}`;
-      const server = createLimoncelloMcpServer(mcpBaseUrl, apiKey || '');
+      const server = createLimoncelloMcpServer(mcpBaseUrl, adminKey || '');
       await server.connect(transport);
 
       await transport.handleRequest(req, res, req.body);
@@ -179,7 +238,7 @@ async function start() {
   });
 
   const server = http.createServer(app);
-  setupWebSocket(server, apiKey);
+  setupWebSocket(server, adminKey);
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`Limoncello running on http://localhost:${port}`);

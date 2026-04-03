@@ -54,9 +54,9 @@ describe('Homepage - GET /', () => {
     assert.ok(res.text.includes('Limoncello'), 'homepage should contain Limoncello title');
   });
 
-  it('contains the Create a Board section', async () => {
+  it('contains the Get Started section', async () => {
     const res = await request(app).get('/');
-    assert.ok(res.text.includes('Create a Board'), 'homepage should have Create a Board section');
+    assert.ok(res.text.includes('Get Started'), 'homepage should have Get Started section');
   });
 
   it('contains the For Humans section', async () => {

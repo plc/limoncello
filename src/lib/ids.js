@@ -11,5 +11,6 @@ const shortId = customAlphabet(alphabet, 12);
 
 const cardId = () => `crd_${shortId()}`;
 const projectId = () => `prj_${shortId()}`;
+const keyId = () => `key_${shortId()}`;
 
-module.exports = { cardId, projectId };
+module.exports = { cardId, projectId, keyId };

@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- Zero-auth agent bootstrapping: agents can self-provision API keys without human intervention
+- `POST /api/keys` -- unauthenticated, rate-limited endpoint (10 req/min/IP) returns a one-time plaintext key (`lmn_` prefix, 48 chars)
+- `GET /api/keys` -- admin-only endpoint to list all agent keys (id, name, created_at, last_used, revoked status)
+- `DELETE /api/keys/:id` -- admin-only endpoint to revoke an agent key (soft delete)
+- `api_keys` table in SQLite: stores SHA-256 hash only, never plaintext
+- Three-tier auth model: admin key (env var) > agent keys (database) > open mode (no auth configured)
+- `requireAdmin` middleware for admin-only routes (returns 403 for agent keys)
+- `limoncello_bootstrap` MCP tool -- agents can provision keys for other agents/projects via MCP
+- Comprehensive test suite for API key management (33 tests in `test/keys.test.js`)
+- Test helpers updated to mount key routes for testing
 - Homepage at `/` -- static landing page explaining Limoncello for both humans and agents
 - Homepage links to `/api/man` (agent discovery) and `/board` (web UI)
 - `GET /board` route serves the Kanban board (previously at `/`)
@@ -22,6 +32,10 @@
 - Tags test coverage (13 tests)
 
 ### Changed
+- Auth middleware refactored: `requireAuth` now checks admin key, then hashes Bearer token against `api_keys` table; updates `last_used` on match
+- API manual (`GET /api/man`) updated: documents three auth types, 24 endpoints, 8 MCP tools, key schema, 403/429 error codes
+- Homepage redesigned with bootstrap-first flow: get a key, connect MCP, create a project
+- Existing tests updated to reflect new endpoint count (24), tool count (8), auth structure, and homepage sections
 - Documentation repositioned Limoncello as a hosted webapp at https://limoncello.fly.dev
 - README.md restructured: Getting Started section leads with web UI and MCP setup (not npm install)
 - README.md now clearly separates user-facing content from developer/contributor content (Development section at bottom)

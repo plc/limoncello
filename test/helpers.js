@@ -18,6 +18,7 @@ const express = require('express');
 const { db, initSchema, DEFAULT_COLUMNS } = require('../src/db');
 const projectsRouter = require('../src/routes/projects');
 const cardsRouter = require('../src/routes/cards');
+const keysRouter = require('../src/routes/keys');
 const { manHandler } = require('../src/routes/man');
 
 // Initialize schema once per process
@@ -38,6 +39,9 @@ function createApp() {
 
   // API manual
   app.get('/api/man', manHandler);
+
+  // Key routes (POST is unauthenticated, GET/DELETE would need admin in production)
+  app.use('/api/keys', keysRouter);
 
   // Project routes
   app.use('/api/projects', projectsRouter);

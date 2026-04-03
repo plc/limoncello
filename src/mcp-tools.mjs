@@ -569,6 +569,42 @@ After making the changes, call \`limoncello_board(project_id: "${project.id}")\`
     }
   );
 
+  // Tool: limoncello_bootstrap
+  server.tool(
+    'limoncello_bootstrap',
+    'Provision a new API key for agent access. Use this when setting up a new agent or project that needs its own Limoncello credentials. The key is returned once and cannot be retrieved later.',
+    {
+      name: z.string().optional().describe('Label for the key (e.g. "Claude Code - myproject")'),
+    },
+    async ({ name }) => {
+      const body = {};
+      if (name) body.name = name;
+
+      const result = await api('/api/keys', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      const text = `API key created successfully.
+
+Key ID: ${result.id}
+API Key: ${result.key}
+Name: ${result.name || '(none)'}
+
+IMPORTANT: Save this key now -- it cannot be retrieved later.
+
+To use this key with Claude Code:
+  claude mcp add limoncello -s user --transport http \\
+    --header "Authorization: Bearer ${result.key}" \\
+    -- https://limoncello.fly.dev/mcp
+
+Or set as environment variable:
+  export LIMONCELLO_API_KEY=${result.key}`;
+
+      return { content: [{ type: 'text', text }] };
+    }
+  );
+
   // Prompt: onboarding suggestion
   server.prompt(
     'limoncello_setup',

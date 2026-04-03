@@ -16,11 +16,27 @@ const manual = {
     type: 'bearer',
     header: 'Authorization',
     format: 'Bearer <token>',
-    env_var: 'LIMONCELLO_API_KEY',
-    description: 'Optional. If LIMONCELLO_API_KEY is set, all /api/* and /mcp routes require a Bearer token. If unset, no auth is required.',
+    types: [
+      {
+        type: 'admin',
+        source: 'LIMONCELLO_API_KEY env var',
+        capabilities: 'Full access including key management',
+      },
+      {
+        type: 'agent',
+        source: 'Database-backed agent keys (lmn_ prefix)',
+        capabilities: 'Full access to projects/cards, cannot manage other keys',
+      },
+      {
+        type: 'none',
+        source: 'No admin key AND no agent keys exist',
+        capabilities: 'All routes are open (local dev)',
+      },
+    ],
     unauthenticated_endpoints: [
       'GET /health',
       'GET /api/man',
+      'POST /api/keys',
     ],
   },
 
@@ -29,7 +45,9 @@ const manual = {
     common_codes: [
       { status: 400, meaning: 'Bad request -- invalid input, missing required fields, or constraint violation' },
       { status: 401, meaning: 'Unauthorized -- missing or invalid Bearer token' },
+      { status: 403, meaning: 'Forbidden -- agent key used for admin-only endpoint' },
       { status: 404, meaning: 'Not found -- resource does not exist' },
+      { status: 429, meaning: 'Rate limited -- too many requests' },
       { status: 500, meaning: 'Internal server error' },
     ],
   },
@@ -41,6 +59,7 @@ const manual = {
     substatuses: 'Columns can define optional sub-statuses. For example, the "blocked" column has sub-statuses "human_review" and "agent_review". A card\'s substatus auto-clears when it moves to a different column.',
     tags: 'Cards can have an array of string tags for categorization and filtering. Tags are stored as JSON and can be filtered via query parameters.',
     ids: 'Projects use "prj_" prefix, cards use "crd_" prefix, both followed by a nanoid string. Example: crd_XhslNkie9dum, prj_vDi0hGAhCrUP.',
+    api_keys: 'Agent-provisioned API keys for authentication. Keys use the lmn_ prefix and are stored as SHA-256 hashes. Agents can self-provision keys via POST /api/keys (unauthenticated, rate-limited). Admin can list and revoke keys.',
   },
 
   schemas: {
@@ -75,6 +94,14 @@ const manual = {
       created_at: { type: 'string', format: 'ISO 8601', example: '2026-04-03T12:00:00.000Z' },
       updated_at: { type: 'string', format: 'ISO 8601', example: '2026-04-03T12:00:00.000Z' },
     },
+    api_key: {
+      id: { type: 'string', example: 'key_abc123', description: 'Unique key ID (key_ prefix)' },
+      key: { type: 'string', example: 'lmn_a3Bf9x...', description: 'Plaintext API key (returned once at creation, never stored)' },
+      name: { type: 'string', example: 'Claude Code - myproject', description: 'Optional label for the key' },
+      created_at: { type: 'string', format: 'ISO 8601' },
+      last_used: { type: 'string|null', format: 'ISO 8601', description: 'Last time this key was used for authentication' },
+      revoked: { type: 'boolean', description: 'Whether the key has been revoked' },
+    },
   },
 
   endpoints: [
@@ -92,6 +119,33 @@ const manual = {
       summary: 'This endpoint. Returns the full API manual as JSON.',
       auth: false,
       response: '(this document)',
+    },
+
+    // API key management
+    {
+      method: 'POST',
+      path: '/api/keys',
+      summary: 'Create a new agent API key (unauthenticated, rate-limited to 10/min/IP)',
+      auth: false,
+      body: {
+        name: { type: 'string', required: false, description: 'Optional label for the key' },
+      },
+      response: '{ id: "key_...", key: "lmn_...", name: "..." } (201). Key is shown once.',
+    },
+    {
+      method: 'GET',
+      path: '/api/keys',
+      summary: 'List all agent API keys (admin only)',
+      auth: 'admin',
+      response: 'Array of { id, name, created_at, last_used, revoked }',
+    },
+    {
+      method: 'DELETE',
+      path: '/api/keys/:id',
+      summary: 'Revoke an agent API key (admin only)',
+      auth: 'admin',
+      params: { id: 'Key ID' },
+      response: '204 No Content',
     },
 
     // Project endpoints
@@ -336,6 +390,7 @@ const manual = {
       LIMONCELLO_API_KEY: 'Bearer token for auth',
     },
     tools: [
+      { name: 'limoncello_bootstrap', description: 'Provision a new agent API key', params: ['name?'] },
       { name: 'limoncello_projects', description: 'List all projects with their columns' },
       { name: 'limoncello_create_project', description: 'Create a new project with custom columns', params: ['name?', 'columns?', 'columns_file?'] },
       { name: 'limoncello_add', description: 'Create a new card', params: ['title', 'description?', 'status?', 'substatus?', 'tags?', 'project_id?'] },
