@@ -10,7 +10,7 @@
 ### Changed
 - `limoncello_move` status parameter is now optional -- allows updating just tags or substatus without changing the card's column
 - Shortened `limoncello_onboard` output to be more concise and professional -- removed excessive capitalization, repetition, and emphasis while keeping all critical information
-- Clarified .claude.json vs .claude/settings.json distinction in onboarding output -- added clear note explaining that .claude.json is Claude's state file (do not edit) and .claude/settings.json is the hooks configuration file (this is what you need)
+- Clarified .claude.json vs .claude/settings.json distinction in onboarding output and CLAUDE.md -- added clear notes explaining that .claude.json is Claude's state file (MCP server config, do not edit manually) and .claude/settings.json is the hooks configuration file (this is what you need for automation hooks)
 
 ### Documentation
 - Documented `POST /api/keys` rate limit (10 req/min/IP) in README.md, CLAUDE.md, and API manual to improve discoverability

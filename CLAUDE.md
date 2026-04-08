@@ -167,7 +167,9 @@ All card tools accept optional `project_id` parameter (defaults to Default proje
 When setting up Limoncello for a new codebase:
 1. **Create a dedicated project** first: `limoncello_create_project` with a descriptive name matching the codebase
 2. **Then run onboarding**: `limoncello_onboard` with the new project_id
-3. The agent will automatically edit CLAUDE.md and .claude.json with board documentation and automation hooks
+3. The agent will automatically edit CLAUDE.md and .claude/settings.json with board documentation and automation hooks
+
+**Note**: .claude.json is Claude's state file (MCP server config). .claude/settings.json is for hooks configuration.
 
 **IMPORTANT**: Each codebase should have its own dedicated Limoncello project, NOT share the Default project.
 
