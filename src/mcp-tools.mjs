@@ -97,7 +97,7 @@ IMPORTANT -- DO THESE THINGS:
 
 3. POLL FOR CHANGES: During long sessions, periodically call limoncello_changes to check if the user has added or moved cards via the web UI.
 
-4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST call limoncello_onboard and OFFER TO MAKE THE EDITS DIRECTLY. Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated. After getting approval, edit CLAUDE.md immediately, then verify the change was made correctly.
+4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST call limoncello_onboard and OFFER TO MAKE THE EDITS DIRECTLY. Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated. After getting approval, edit both CLAUDE.md AND .claude.json (with automation hooks), then verify both changes were made correctly.
 
 The board is shared -- the user sees your card updates in real time via the web UI at /board. Treat the board as the source of truth for what needs doing.`,
   });
@@ -555,9 +555,9 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 
 3. VERIFY the edit was successful by reading CLAUDE.md and confirming it contains the project ID: ${project.id}
 
---- RECOMMENDED: Add Claude Code hooks to .claude.json ---
+4. Create or edit .claude.json in the project root directory with the following hooks configuration:
 
-For seamless integration, add hooks to the project's .claude.json file (create it if it doesn't exist) that automatically manage Limoncello cards during work:
+If .claude.json already exists, read it first and merge the hooks section intelligently. If it doesn't exist, create it with this content:
 
 {
   "hooks": {
@@ -591,9 +591,11 @@ These hooks will:
 - After completing a task, automatically move matching Limoncello cards to "done"
 - Only activate when Limoncello is configured in CLAUDE.md (safe for all projects)
 
+5. VERIFY .claude.json was created/updated correctly by reading it back and confirming the hooks are present
+
 --- FINAL STEP ---
 
-After editing CLAUDE.md and verifying the change, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
+After editing both files and verifying the changes, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
 
       return { content: [{ type: 'text', text }] };
     }

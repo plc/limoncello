@@ -163,11 +163,11 @@ Or use `limoncello_changes` with a `since` timestamp if you know when your last 
 
 ### Automated workflow (hooks)
 
-This project has Claude Code hooks configured in `.claude.json` that automatically:
+This project has Claude Code hooks in `.claude.json` (added during Limoncello onboarding) that automatically:
 - **After ExitPlanMode**: Prompt to create Limoncello cards for non-trivial plans (tracks each step)
 - **After TaskCompleted**: Check for matching Limoncello cards and move them to `done`, then commit changes
 
-These hooks intelligently detect if Limoncello is configured by reading CLAUDE.md, so they're safe to copy to other projects.
+These hooks intelligently detect if Limoncello is configured by reading CLAUDE.md. The `limoncello_onboard` MCP tool creates these hooks automatically when setting up a new project.
 
 ### Why this matters
 
