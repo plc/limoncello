@@ -1,6 +1,6 @@
 {
   "hooks": {
-    "PermissionRequest": [
+    "PreToolUse": [
       {
         "matcher": "ExitPlanMode",
         "hooks": [
@@ -11,12 +11,12 @@
         ]
       }
     ],
-    "TaskCompleted": [
+    "Stop": [
       {
         "hooks": [
           {
             "type": "agent",
-            "prompt": "A task was just marked as completed. Do the following in order:\n\n1. Read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \"limoncello_board\" or a project ID matching \"prj_\").\n\n2. If Limoncello IS referenced:\n   a. Extract the project_id from CLAUDE.md (format: prj_XXXXX)\n   b. Use limoncello_list with that project_id and status=\"in_progress\" to check for cards currently being worked on\n   c. If any cards match the completed task, respond with {\"ok\": false, \"reason\": \"Move the relevant Limoncello card(s) to done using limoncello_move, then commit any uncommitted changes with a descriptive conventional commit message that references the card ID.\"}\n   d. If no matching cards but there are uncommitted changes, respond with {\"ok\": false, \"reason\": \"Commit the uncommitted changes with a descriptive conventional commit message.\"}\n\n3. If Limoncello is NOT referenced, check for uncommitted changes. If there are any, respond with {\"ok\": false, \"reason\": \"Commit the uncommitted changes with a descriptive conventional commit message.\"}\n\n4. If nothing needs doing, respond with {\"ok\": true}.",
+            "prompt": "Claude just finished a turn. Do the following in order:\n\n1. If this was a conversation-only turn (no files edited, no tools used), respond with {\"ok\": true}.\n\n2. Read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \"limoncello_board\" or a project ID matching \"prj_\").\n\n3. If Limoncello IS referenced:\n   a. Extract the project_id from CLAUDE.md (format: prj_XXXXX)\n   b. Use limoncello_list with that project_id and status=\"in_progress\" to check for cards currently being worked on\n   c. If any cards match the work just completed, respond with {\"ok\": false, \"reason\": \"Move the relevant Limoncello card(s) to done using limoncello_move, then commit any uncommitted changes with a descriptive conventional commit message that references the card ID.\"}\n   d. If no matching cards but there are uncommitted changes, respond with {\"ok\": false, \"reason\": \"Commit the uncommitted changes with a descriptive conventional commit message.\"}\n\n4. If Limoncello is NOT referenced, check for uncommitted changes. If there are any, respond with {\"ok\": false, \"reason\": \"Commit the uncommitted changes with a descriptive conventional commit message.\"}\n\n5. If nothing needs doing, respond with {\"ok\": true}.",
             "timeout": 60
           }
         ]

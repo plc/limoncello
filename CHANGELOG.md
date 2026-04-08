@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- `.claude.json` with Claude Code hooks for automatic Limoncello integration: ExitPlanMode hook prompts to create cards for non-trivial plans, TaskCompleted hook updates card status and commits changes
+- `.claude/settings.json` with Claude Code hooks for automatic Limoncello integration: PreToolUse/ExitPlanMode hook prompts to create cards for non-trivial plans, Stop hook updates card status and commits changes after work is done
 - Hooks intelligently detect Limoncello configuration by reading CLAUDE.md before activating
 - Zero-auth agent bootstrapping: agents can self-provision API keys without human intervention
 - `POST /api/keys` -- unauthenticated, rate-limited endpoint (10 req/min/IP) returns a one-time plaintext key (`lmn_` prefix, 48 chars)
@@ -35,12 +35,12 @@
 
 ### Changed
 - Enhanced `limoncello_onboard` MCP tool to enforce creating NEW projects: now requires project_id parameter (rejects calls without it), instructs agents to create a dedicated board for each codebase using limoncello_create_project BEFORE onboarding, and emphasizes that each codebase should have its own board (not share the Default project)
-- `limoncello_onboard` now instructs agents to edit BOTH CLAUDE.md AND .claude.json directly (with approval), verify the changes, and emphasizes the critical importance of documenting the board's project ID
-- Onboarding process now creates/edits `.claude.json` with automation hooks (ExitPlanMode and TaskCompleted) instead of just showing copy-paste examples
-- MCP server instructions updated to strongly emphasize documenting the board in both CLAUDE.md and .claude.json as critical requirements
+- `limoncello_onboard` now instructs agents to edit BOTH CLAUDE.md AND .claude/settings.json directly (with approval), verify the changes, and emphasizes the critical importance of documenting the board's project ID
+- Onboarding process now creates/edits `.claude/settings.json` with automation hooks (PreToolUse/ExitPlanMode and Stop) instead of just showing copy-paste examples
+- MCP server instructions updated to strongly emphasize documenting the board in both CLAUDE.md and .claude/settings.json as critical requirements
 - Onboarding plan text strengthened with clear explanation of why documentation is essential (prevents work loss, duplication, and coordination breakdowns)
-- Onboarding plan now includes step-by-step instructions for creating/editing `.claude.json` with intelligent merging if file already exists
-- CLAUDE.md updated with section documenting the automated workflow hooks in `.claude.json`
+- Onboarding plan now includes step-by-step instructions for creating/editing `.claude/settings.json` with intelligent merging if file already exists
+- CLAUDE.md updated with section documenting the automated workflow hooks in `.claude/settings.json`
 - `POST /api/keys` response now includes `setup` object with MCP installation command, environment variable example, warning, and docs link (agents and humans both get setup instructions immediately)
 - Auth middleware refactored: `requireAuth` now checks admin key, then hashes Bearer token against `api_keys` table; updates `last_used` on match
 - API manual (`GET /api/man`) updated: documents three auth types, 24 endpoints, 8 MCP tools, key schema, 403/429 error codes
@@ -58,6 +58,11 @@
 - Renamed "Quick Start" section to "Getting Started"
 - Removed all self-hosting instructions (npm install, localhost references, STDIO MCP setup)
 - Getting Started section now highlights Streamable HTTP MCP transport as the recommended approach
+
+### Fixed
+- **CRITICAL**: Corrected hooks configuration file location from `.claude.json` to `.claude/settings.json` (hooks in `.claude.json` were being ignored)
+- **CRITICAL**: Fixed hook event names to use actual Claude Code API: `PreToolUse` instead of `PermissionRequest`, `Stop` instead of `TaskCompleted`
+- Updated onboarding tool to generate hooks with correct file location and event names
 
 ### Removed
 - Slash commands (.claude/commands/) removed in favor of MCP tools

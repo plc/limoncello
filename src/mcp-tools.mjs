@@ -100,7 +100,7 @@ IMPORTANT -- DO THESE THINGS:
 4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST:
    a. CREATE A NEW LIMONCELLO PROJECT for this codebase using limoncello_create_project with a descriptive name (e.g., "MyApp Development", "Acme Corp Backend"). Each codebase should have its own dedicated board, NOT share the Default project.
    b. Call limoncello_onboard with the new project_id and OFFER TO MAKE THE EDITS DIRECTLY.
-   c. After getting approval, edit both CLAUDE.md AND .claude.json (with automation hooks), then verify both changes were made correctly.
+   c. After getting approval, edit both CLAUDE.md AND .claude/settings.json (with automation hooks), then verify both changes were made correctly.
 
    Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated.
 
@@ -573,13 +573,15 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 
 3. VERIFY the edit was successful by reading CLAUDE.md and confirming it contains the project ID: ${project.id}
 
-4. Create or edit .claude.json in the project root directory with the following hooks configuration:
+4. Create or edit .claude/settings.json in the project directory with the following hooks configuration:
 
-If .claude.json already exists, read it first and merge the hooks section intelligently. If it doesn't exist, create it with this content:
+IMPORTANT: The file MUST be at .claude/settings.json (not .claude.json). Create the .claude directory first if needed.
+
+If .claude/settings.json already exists, read it first and merge the hooks section intelligently. If it doesn't exist, create it with this content:
 
 {
   "hooks": {
-    "PermissionRequest": [
+    "PreToolUse": [
       {
         "matcher": "ExitPlanMode",
         "hooks": [
@@ -590,12 +592,12 @@ If .claude.json already exists, read it first and merge the hooks section intell
         ]
       }
     ],
-    "TaskCompleted": [
+    "Stop": [
       {
         "hooks": [
           {
             "type": "agent",
-            "prompt": "A task was just marked as completed. Do the following in order:\\n\\n1. Read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \\"limoncello_board\\" or a project ID matching \\"prj_\\").\\n\\n2. If Limoncello IS referenced:\\n   a. Extract the project_id from CLAUDE.md (format: prj_XXXXX)\\n   b. Use limoncello_list with that project_id and status=\\"in_progress\\" to check for cards currently being worked on\\n   c. If any cards match the completed task, respond with {\\"ok\\": false, \\"reason\\": \\"Move the relevant Limoncello card(s) to done using limoncello_move, then commit any uncommitted changes with a descriptive conventional commit message that references the card ID.\\"}\\n   d. If no matching cards but there are uncommitted changes, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n3. If Limoncello is NOT referenced, check for uncommitted changes. If there are any, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n4. If nothing needs doing, respond with {\\"ok\\": true}.",
+            "prompt": "Claude just finished a turn. Do the following in order:\\n\\n1. If this was a conversation-only turn (no files edited, no tools used), respond with {\\"ok\\": true}.\\n\\n2. Read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \\"limoncello_board\\" or a project ID matching \\"prj_\\").\\n\\n3. If Limoncello IS referenced:\\n   a. Extract the project_id from CLAUDE.md (format: prj_XXXXX)\\n   b. Use limoncello_list with that project_id and status=\\"in_progress\\" to check for cards currently being worked on\\n   c. If any cards match the work just completed, respond with {\\"ok\\": false, \\"reason\\": \\"Move the relevant Limoncello card(s) to done using limoncello_move, then commit any uncommitted changes with a descriptive conventional commit message that references the card ID.\\"}\\n   d. If no matching cards but there are uncommitted changes, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n4. If Limoncello is NOT referenced, check for uncommitted changes. If there are any, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n5. If nothing needs doing, respond with {\\"ok\\": true}.",
             "timeout": 60
           }
         ]
@@ -605,11 +607,11 @@ If .claude.json already exists, read it first and merge the hooks section intell
 }
 
 These hooks will:
-- After exiting plan mode for non-trivial tasks, prompt to create Limoncello cards for each step
-- After completing a task, automatically move matching Limoncello cards to "done"
+- PreToolUse/ExitPlanMode: Before exiting plan mode for non-trivial tasks, prompt to create Limoncello cards for each step
+- Stop: After each turn where work was done, automatically move matching Limoncello cards to "done"
 - Only activate when Limoncello is configured in CLAUDE.md (safe for all projects)
 
-5. VERIFY .claude.json was created/updated correctly by reading it back and confirming the hooks are present
+5. VERIFY .claude/settings.json was created/updated correctly by reading it back and confirming the hooks are present
 
 --- FINAL STEP ---
 
