@@ -97,7 +97,7 @@ IMPORTANT -- DO THESE THINGS:
 
 3. POLL FOR CHANGES: During long sessions, periodically call limoncello_changes to check if the user has added or moved cards via the web UI.
 
-4. FIRST-TIME SETUP: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), call limoncello_onboard to generate a setup plan. Present it to the user for approval. This ensures future sessions automatically check the board.
+4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST call limoncello_onboard and OFFER TO MAKE THE EDITS DIRECTLY. Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated. After getting approval, edit CLAUDE.md immediately, then verify the change was made correctly.
 
 The board is shared -- the user sees your card updates in real time via the web UI at /board. Treat the board as the source of truth for what needs doing.`,
   });
@@ -476,7 +476,7 @@ The board is shared -- the user sees your card updates in real time via the web 
   // Tool: limoncello_onboard
   server.tool(
     'limoncello_onboard',
-    'Generate an onboarding plan for integrating Limoncello into a project. CALL THIS if the current project does not reference Limoncello in its CLAUDE.md -- it generates a setup plan to present to the user for approval.',
+    'CRITICAL ONBOARDING TOOL: Call this if the project does not reference Limoncello in its CLAUDE.md. After calling this tool, you MUST offer to edit CLAUDE.md directly (with user approval) to document the board. Without this documentation, future sessions will not know the board exists.',
     {
       project_id: z.string().optional().describe('Project ID (defaults to Default project)'),
       project_dir: z.string().optional().describe('Path to the project root directory (for reading/checking CLAUDE.md)'),
@@ -508,17 +508,27 @@ The board is shared -- the user sees your card updates in real time via the web 
         }
       }
 
-      const text = `LIMONCELLO ONBOARDING PLAN
-===========================
+      const text = `CRITICAL: LIMONCELLO ONBOARDING REQUIRED
+=========================================
 
-This project is connected to Limoncello but hasn't been configured to use it effectively.
+This project is connected to Limoncello but is NOT documented in CLAUDE.md.
 Board: ${project.name} (${project.id})
 
-IMPORTANT: Present this plan to the user for approval before making any changes.
+WHY THIS IS CRITICAL:
+Without documenting the board ID in CLAUDE.md, future Claude sessions will not know this project has a Limoncello board. This means:
+- Work tracked on the board will be invisible to future agents
+- Tasks will be duplicated or lost
+- Human-added cards will be ignored
+- The shared coordination system breaks down
 
---- STEP 1: Add Limoncello section to CLAUDE.md ---
+YOU MUST fix this now.
 
-Add the following to your project's CLAUDE.md (or create one if it doesn't exist):
+--- ACTION REQUIRED ---
+
+After presenting this plan to the user for approval, you MUST:
+
+1. Edit (or create) CLAUDE.md in the project root directory
+2. Add the following section (adjust placement as appropriate):
 
 ## Limoncello Board
 
@@ -543,9 +553,11 @@ limoncello_board(project_id: "${project.id}")
 
 The board is shared between humans and agents. Humans may add, reprioritize, or annotate cards via the web UI between agent sessions. Polling ensures you're working on what matters and not duplicating effort.
 
---- STEP 2: (Optional) Add Claude Code hooks ---
+3. VERIFY the edit was successful by reading CLAUDE.md and confirming it contains the project ID: ${project.id}
 
-For maximum integration, the user can add hooks to their Claude Code settings (~/.claude/settings.json) that automatically remind the agent to check the board:
+--- OPTIONAL: Add Claude Code hooks ---
+
+For maximum integration, suggest the user add hooks to their Claude Code settings (~/.claude/settings.json) that automatically remind the agent to check the board:
 
 Stop hook (runs after each turn where files were edited):
 {
@@ -561,9 +573,9 @@ TaskCompleted hook (runs when a task is marked complete):
   "timeout": 60
 }
 
---- STEP 3: Verify setup ---
+--- FINAL STEP ---
 
-After making the changes, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
+After editing CLAUDE.md and verifying the change, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
 
       return { content: [{ type: 'text', text }] };
     }

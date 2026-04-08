@@ -32,6 +32,9 @@
 - Tags test coverage (13 tests)
 
 ### Changed
+- Enhanced `limoncello_onboard` MCP tool to be more proactive: now instructs agents to offer editing CLAUDE.md directly (with approval), verify the changes, and emphasizes the critical importance of documenting the board's project ID
+- MCP server instructions updated to strongly emphasize documenting the board in CLAUDE.md as a critical requirement, not optional
+- Onboarding plan text strengthened with clear explanation of why documentation is essential (prevents work loss, duplication, and coordination breakdowns)
 - Auth middleware refactored: `requireAuth` now checks admin key, then hashes Bearer token against `api_keys` table; updates `last_used` on match
 - API manual (`GET /api/man`) updated: documents three auth types, 24 endpoints, 8 MCP tools, key schema, 403/429 error codes
 - Homepage redesigned with bootstrap-first flow: get a key, connect MCP, create a project
