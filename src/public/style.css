@@ -92,6 +92,45 @@ body {
   flex-shrink: 0;
 }
 
+/* Recent filter bar */
+
+.recent-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  background-color: #0f1629;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.recent-filter-label {
+  font-size: 12px;
+  color: #a8b2d1;
+  white-space: nowrap;
+}
+
+.recent-filter-select {
+  background-color: #16213e;
+  color: #fff;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.recent-filter-select:focus {
+  border-color: #4a90e2;
+}
+
+.recent-filter-select option {
+  background-color: #16213e;
+  color: #fff;
+}
+
 .tag-filter-label {
   font-size: 12px;
   color: #a8b2d1;

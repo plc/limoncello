@@ -772,5 +772,361 @@ Use the Limoncello MCP tools to track work on the shared Kanban board.
     })
   );
 
+  // Resource: Limoncello guide
+  server.registerResource(
+    'limoncello-guide',
+    'limoncello://guide',
+    {
+      description: 'Comprehensive guide for using Limoncello effectively',
+      mimeType: 'text/markdown',
+    },
+    async () => ({
+      contents: [{
+        uri: 'limoncello://guide',
+        mimeType: 'text/markdown',
+        text: `# Limoncello Agent Guide
+
+## What is Limoncello?
+
+Limoncello is a Kanban board designed for human-AI collaboration. Humans use the web UI, agents use the MCP server. Both create and manage cards on shared projects.
+
+## Core Concepts
+
+### Projects
+- Each project has custom columns (e.g., Backlog → To Do → In Progress → Blocked → Done)
+- Cards belong to projects
+- Each codebase should have its own dedicated project (not share the Default project)
+
+### Cards
+- Represent tasks, bugs, features, or items needing review
+- Have title, description, status (column), optional substatus, and tags
+- Move through columns as work progresses
+
+### Sub-statuses
+- Columns can define optional sub-statuses (e.g., "blocked" column might have "human_review" or "agent_review")
+- Useful for indicating why a card is in a particular state
+- Substatus auto-clears when moving to a different column
+
+### Real-time Sync
+- Board uses WebSocket for live updates
+- Humans see agent card changes instantly in the web UI
+- Agents can poll for changes to see human-added or moved cards
+
+## Essential Workflow
+
+### 1. Session Start (CRITICAL)
+Always check the board at the beginning of every session:
+
+\`\`\`
+limoncello_board(project_id: "prj_xxx")
+\`\`\`
+
+This shows:
+- Current task priorities
+- Human-added cards since last session
+- Work already in progress
+- Blocked items needing attention
+
+### 2. Working on Tasks
+
+**Starting work:**
+\`\`\`
+limoncello_move(card_id: "crd_xxx", status: "in_progress")
+\`\`\`
+
+**If blocked:**
+\`\`\`
+limoncello_move(
+  card_id: "crd_xxx",
+  status: "blocked",
+  substatus: "human_review"  // or "agent_review"
+)
+\`\`\`
+
+**When complete:**
+\`\`\`
+limoncello_move(card_id: "crd_xxx", status: "done")
+\`\`\`
+
+### 3. Discovering New Work
+
+When you find bugs, TODOs, or follow-up tasks during implementation:
+
+\`\`\`
+limoncello_add(
+  title: "Fix authentication edge case",
+  description: "Handle JWT refresh when user has multiple sessions",
+  status: "backlog",
+  tags: ["bug", "security"],
+  project_id: "prj_xxx"
+)
+\`\`\`
+
+### 4. Long Sessions
+
+During extended work sessions, periodically check for changes:
+
+\`\`\`
+limoncello_changes(
+  since: "2026-04-07T10:00:00.000Z",
+  project_id: "prj_xxx"
+)
+\`\`\`
+
+The response includes \`server_time\` — save this and use it as \`since\` for your next poll.
+
+## Best Practices
+
+### Task Granularity
+- **Good**: "Add user authentication endpoint" (clear, actionable)
+- **Too vague**: "Work on auth" (unclear scope)
+- **Too granular**: "Add import statement for bcrypt" (implementation detail)
+
+### Descriptions
+- Explain WHY the task exists, not just WHAT needs doing
+- Include context: links, error messages, requirements
+- Mention blockers or dependencies
+
+### Tags
+Use tags to categorize work:
+- \`bug\`, \`feature\`, \`refactor\`, \`docs\`, \`test\`
+- \`urgent\`, \`low-priority\`
+- \`needs-review\`, \`breaking-change\`
+
+### Sub-statuses
+Use sub-statuses to indicate waiting reasons:
+- \`blocked/human_review\` — needs human decision or approval
+- \`blocked/agent_review\` — needs another agent to complete their work
+
+### Board as Source of Truth
+- Treat the board as the authoritative task list
+- Don't maintain duplicate TODO lists in comments or docs
+- Always update card status when work progresses
+
+## Common Use Cases
+
+### Project Onboarding
+
+If working on a new codebase without Limoncello integration:
+
+1. **Create a dedicated project:**
+   \`\`\`
+   limoncello_create_project(
+     name: "MyApp Development",
+     description: "Feature development and bug fixes for MyApp"
+   )
+   \`\`\`
+
+2. **Run onboarding:**
+   \`\`\`
+   limoncello_onboard(
+     project_id: "prj_newId",
+     project_dir: "/path/to/project"
+   )
+   \`\`\`
+
+3. **Follow the instructions** to update CLAUDE.md and .claude/settings.json
+
+### Multi-step Features
+
+For complex features, break them into cards:
+
+\`\`\`
+limoncello_add(title: "Design API schema", status: "in_progress", project_id: "prj_xxx")
+limoncello_add(title: "Implement backend endpoints", status: "todo", project_id: "prj_xxx")
+limoncello_add(title: "Add frontend integration", status: "todo", project_id: "prj_xxx")
+limoncello_add(title: "Write integration tests", status: "todo", project_id: "prj_xxx")
+\`\`\`
+
+Move each through the workflow as you complete them.
+
+### Human Review Loop
+
+When you need human input:
+
+1. Move card to \`blocked\` with \`substatus: "human_review"\`
+2. Update the card description with specific questions or options
+3. Human reviews via web UI and either:
+   - Moves card back to \`todo\` or \`in_progress\` with answer in description
+   - Adds a comment (if your project uses comments)
+   - Adjusts the card or creates follow-up cards
+
+### Debugging Sessions
+
+When investigating a bug:
+
+\`\`\`
+limoncello_add(
+  title: "Debug intermittent 500 errors on /api/users",
+  description: "Occurs ~10% of requests, no pattern in logs yet",
+  status: "in_progress",
+  tags: ["bug", "investigation"],
+  project_id: "prj_xxx"
+)
+\`\`\`
+
+As you discover root causes, update the description or create follow-up cards for fixes.
+
+## Advanced Patterns
+
+### Team Coordination
+
+If working with multiple agents or humans:
+
+- Use tags to assign ownership: \`@agent-name\`, \`@human-name\`
+- Use sub-statuses to indicate waiting: \`blocked/agent_review\`
+- Check the board frequently to avoid duplicate work
+
+### Automation Hooks
+
+If your project has .claude/settings.json configured with Limoncello hooks:
+
+- **PreToolUse/ExitPlanMode**: Automatically prompts to create cards before implementing non-trivial plans
+- **Stop hook**: Silently moves cards to "done" when matching work completes
+
+These run automatically — you don't need to call tools explicitly.
+
+### Filtering and Searching
+
+List cards by status:
+\`\`\`
+limoncello_list(status: "blocked", project_id: "prj_xxx")
+\`\`\`
+
+List cards by tag:
+\`\`\`
+limoncello_list(tag: "urgent", project_id: "prj_xxx")
+\`\`\`
+
+Get full details on a specific card:
+\`\`\`
+limoncello_get(card_id: "crd_xxx", project_id: "prj_xxx")
+\`\`\`
+
+### Custom Columns
+
+Create projects with workflow-specific columns:
+
+\`\`\`
+limoncello_create_project(
+  name: "QA Testing",
+  columns: [
+    { key: "untested", label: "Untested" },
+    { key: "testing", label: "Testing" },
+    { key: "failed", label: "Failed", substatuses: [
+      { key: "regression", label: "Regression" },
+      { key: "new_bug", label: "New Bug" }
+    ]},
+    { key: "passed", label: "Passed" }
+  ]
+)
+\`\`\`
+
+## Troubleshooting
+
+### "No project found"
+- Check if you're using the correct project_id
+- List all projects: \`limoncello_projects()\`
+
+### "Invalid status"
+- Each project has custom columns
+- Check valid columns: \`limoncello_projects()\` shows column keys
+- Use the column key (e.g., \`in_progress\`), not the label (e.g., "In Progress")
+
+### "Invalid substatus"
+- Sub-statuses are column-specific
+- Check which columns support sub-statuses: \`limoncello_projects()\`
+- Substatus auto-clears when moving to a column that doesn't define it
+
+### Cards not syncing
+- WebSocket might be disconnected — refresh the web UI
+- Agents poll explicitly via \`limoncello_changes()\` or \`limoncello_board()\`
+- Check that the same project_id is being used
+
+### Duplicate cards
+- Always check the board at session start before creating cards
+- Use \`limoncello_list()\` or \`limoncello_board()\` to see existing work
+- Search by tag or title before adding new cards
+
+## Tools Reference
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| \`limoncello_board\` | Show board summary | **Session start** (mandatory), anytime you need overview |
+| \`limoncello_projects\` | List all projects | When you need to find or verify project_id |
+| \`limoncello_create_project\` | Create new project | New codebase onboarding, custom workflows |
+| \`limoncello_add\` | Create card | Discovering new tasks, bugs, or todos |
+| \`limoncello_list\` | List cards | Filter by status or tag, focused view |
+| \`limoncello_get\` | Get single card | Need full details including timestamps |
+| \`limoncello_move\` | Update card status/tags | Starting work, finishing, blocking, tagging |
+| \`limoncello_changes\` | Poll for updates | Long sessions, check for human changes |
+| \`limoncello_onboard\` | Generate onboarding plan | New project without Limoncello docs |
+| \`limoncello_bootstrap\` | Create API key | Setting up access for new agent or environment |
+
+## Integration Tips
+
+### CLAUDE.md Documentation
+
+Always document the board in your project's CLAUDE.md:
+
+\`\`\`markdown
+## Limoncello Board
+
+This project tracks work on: **MyApp Development** (\`prj_abc123\`)
+
+At session start, check for tasks:
+\\\`\\\`\\\`
+limoncello_board(project_id: "prj_abc123")
+\\\`\\\`\\\`
+
+Working on tasks:
+- Move cards to \`in_progress\` when starting work
+- Move to \`blocked\` if waiting on human input
+- Move to \`done\` when finished
+- Add new cards to \`backlog\` when discovering work
+\`\`\`
+
+### Commit Messages
+
+When completing work tracked on a card, reference it in commits:
+
+\`\`\`
+feat(auth): add JWT refresh endpoint
+
+Implements user session management across multiple devices.
+
+Limoncello: crd_abc123
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+\`\`\`
+
+### README Updates
+
+For user-facing projects, mention the board in the README:
+
+\`\`\`markdown
+## Development Workflow
+
+We use [Limoncello](https://limoncello.fly.dev) to track tasks and bugs.
+
+**Contributors:** View the board at https://limoncello.fly.dev/board?project=prj_abc123
+\`\`\`
+
+## Summary
+
+Limoncello is most effective when you:
+
+1. **Always check the board at session start** — this is not optional
+2. **Create cards proactively** — don't wait to be asked
+3. **Update status as work progresses** — keep the board current
+4. **Use sub-statuses and tags** — add context, don't just move cards
+5. **Poll for changes during long sessions** — stay coordinated with humans
+6. **Document the board in CLAUDE.md** — ensure future sessions use it
+
+Treat the board as the single source of truth for what needs doing. The human sees your updates in real time, and you see theirs when you poll. This shared visibility is what makes human-AI collaboration effective.`,
+      }],
+    })
+  );
+
   return server;
 }

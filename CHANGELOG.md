@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Recent changes filter -- dropdown to show only the last N recently changed cards (3, 5, 10, or 20), sorted by updated_at timestamp for focusing on recent activity
 - Drag-and-drop placeholder preview -- when dragging a card, a visual placeholder appears at the drop position and other cards shift to show where it will land
 - Card ID field in card modal -- shows card ID in small, monospace text above the description for easy copying and referencing in Claude Code
 - Welcome card seeded on project creation -- new projects automatically get a helpful welcome card in the first column explaining how to use Limoncello for both humans and AI agents
