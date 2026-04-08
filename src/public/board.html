@@ -28,6 +28,17 @@
     <button class="tag-filter-clear" id="tagFilterClear" style="display: none;">Clear</button>
   </div>
 
+  <div class="recent-filter-bar">
+    <label for="recentCardsFilter" class="recent-filter-label">Show only recent changes:</label>
+    <select id="recentCardsFilter" class="recent-filter-select">
+      <option value="0">All cards</option>
+      <option value="3">Last 3 changed</option>
+      <option value="5">Last 5 changed</option>
+      <option value="10">Last 10 changed</option>
+      <option value="20">Last 20 changed</option>
+    </select>
+  </div>
+
   <div class="board" id="board"></div>
 
   <div class="modal-overlay" id="cardModal" style="display: none;">

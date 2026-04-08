@@ -6,6 +6,7 @@ let currentCard = null;
 let draggedCard = null;
 let sourceColumn = null;
 let activeTagFilter = null;
+let recentCardsLimit = 0; // 0 = show all
 
 // Auth -- stored in localStorage, prompted on 401
 function getApiKey() {
@@ -56,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModal();
   setupProjectModal();
   setupHeaderButtons();
+  setupRecentFilter();
   loadProjects();
   connectWebSocket();
 });
@@ -113,6 +115,14 @@ function setupHeaderButtons() {
 
   document.getElementById('editProjectBtn').addEventListener('click', () => {
     if (currentProject) openProjectModal(currentProject);
+  });
+}
+
+function setupRecentFilter() {
+  const select = document.getElementById('recentCardsFilter');
+  select.addEventListener('change', (e) => {
+    recentCardsLimit = parseInt(e.target.value, 10);
+    renderBoard();
   });
 }
 
@@ -231,6 +241,18 @@ function renderColumns() {
 function renderBoard() {
   if (!currentProject) return;
 
+  // Get recently changed cards if filter is active
+  let recentCardIds = new Set();
+  if (recentCardsLimit > 0) {
+    const sortedByUpdate = [...cards].sort((a, b) => {
+      const aTime = new Date(a.updated_at || a.created_at).getTime();
+      const bTime = new Date(b.updated_at || b.created_at).getTime();
+      return bTime - aTime; // Most recent first
+    });
+    const recentCards = sortedByUpdate.slice(0, recentCardsLimit);
+    recentCardIds = new Set(recentCards.map(c => c.id));
+  }
+
   currentProject.columns.forEach(col => {
     const container = document.querySelector(`.cards-container[data-status="${col.key}"]`);
     if (!container) return;
@@ -239,6 +261,12 @@ function renderBoard() {
       .filter(card => card.status === col.key)
       .sort((a, b) => a.position - b.position);
 
+    // Apply recent cards filter
+    if (recentCardsLimit > 0) {
+      columnCards = columnCards.filter(card => recentCardIds.has(card.id));
+    }
+
+    // Apply tag filter
     if (activeTagFilter) {
       columnCards = columnCards.filter(card =>
         (card.tags || []).includes(activeTagFilter)

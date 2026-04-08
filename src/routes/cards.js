@@ -121,9 +121,25 @@ router.get('/changes', (req, res) => {
     'SELECT * FROM cards WHERE project_id = ? AND updated_at > datetime(?) ORDER BY updated_at ASC'
   ).all(req.projectId, since).map(parseCardTags);
 
+  const serverTime = new Date().toISOString();
+  const changeCount = cards.length;
+
+  // Set polling hint headers
+  res.setHeader('X-Poll-Interval', '30'); // Suggested poll interval in seconds
+  res.setHeader('X-Server-Time', serverTime);
+  res.setHeader('X-Change-Count', changeCount.toString());
+
   res.json({
     cards,
-    server_time: new Date().toISOString(),
+    server_time: serverTime,
+    polling: {
+      next_since: serverTime,
+      suggested_interval_seconds: 30,
+      change_count: changeCount,
+      hint: changeCount > 0
+        ? 'Changes detected. Poll again to stay up to date.'
+        : 'No changes since last poll. You can increase the interval if polling frequently.',
+    },
   });
 });
 
