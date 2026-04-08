@@ -125,12 +125,13 @@ const manual = {
     {
       method: 'POST',
       path: '/api/keys',
-      summary: 'Create a new agent API key (unauthenticated, rate-limited to 10/min/IP)',
+      summary: 'Create a new agent API key (unauthenticated, rate-limited to 10 requests/min/IP to prevent abuse)',
       auth: false,
+      rate_limit: '10 requests per minute per IP address',
       body: {
         name: { type: 'string', required: false, description: 'Optional label for the key' },
       },
-      response: '{ id: "key_...", key: "lmn_...", name: "..." } (201). Key is shown once.',
+      response: '{ id: "key_...", key: "lmn_...", name: "...", setup: {...} } (201). Key is shown once. Rate limit returns 429 when exceeded.',
     },
     {
       method: 'GET',

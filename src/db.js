@@ -38,11 +38,12 @@ function initSchema() {
   // Create projects table
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
-      id         TEXT PRIMARY KEY,
-      name       TEXT NOT NULL,
-      columns    TEXT NOT NULL DEFAULT '${DEFAULT_COLUMNS.replace(/'/g, "''")}',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      columns     TEXT NOT NULL DEFAULT '${DEFAULT_COLUMNS.replace(/'/g, "''")}',
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
@@ -99,6 +100,14 @@ function initSchema() {
   if (!hasTags && tagsTableInfo.length > 0) {
     db.exec("ALTER TABLE cards ADD COLUMN tags TEXT DEFAULT '[]'");
     console.log('Added tags column to cards table');
+  }
+
+  // Migration: Add description column to projects table if it doesn't exist
+  const projectsTableInfo = db.prepare("PRAGMA table_info(projects)").all();
+  const hasDescription = projectsTableInfo.some(col => col.name === 'description');
+  if (!hasDescription && projectsTableInfo.length > 0) {
+    db.exec("ALTER TABLE projects ADD COLUMN description TEXT DEFAULT ''");
+    console.log('Added description column to projects table');
   }
 
   // Create api_keys table for agent bootstrapping
@@ -163,8 +172,8 @@ function ensureDefaultProject() {
 
   const id = projectId();
   db.prepare(`
-    INSERT INTO projects (id, name, columns, created_at, updated_at)
-    VALUES (?, 'Default', ?, datetime('now'), datetime('now'))
+    INSERT INTO projects (id, name, description, columns, created_at, updated_at)
+    VALUES (?, 'Default', '', ?, datetime('now'), datetime('now'))
   `).run(id, DEFAULT_COLUMNS);
 
   console.log(`Created Default project: ${id}`);

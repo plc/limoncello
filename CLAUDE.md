@@ -15,6 +15,7 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **Local**: `npm run dev` -- homepage at http://localhost:3654, board at http://localhost:3654/board
 - **Production**: https://limoncello.fly.dev (Fly.io, SQLite on persistent volume)
 - **Auth**: Three-tier model -- admin key (env var), agent keys (database-backed `lmn_` prefix), or open mode (no auth configured). See Key Architecture below.
+- **Rate Limits**: `POST /api/keys` is rate-limited to 10 requests/min/IP to prevent abuse of the unauthenticated bootstrapping endpoint.
 
 ## Key Architecture
 
@@ -27,7 +28,7 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 - **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects, `key_` prefix for API keys (`src/lib/ids.js`)
 - **Port**: 3654
 - **Auth**: Three-tier: (1) admin key from `LIMONCELLO_API_KEY` env var -- full access including key management; (2) agent keys from `api_keys` table -- full project/card access, no key management; (3) open mode -- if no admin key and no agent keys exist, all routes are open (local dev)
-- **API keys**: `POST /api/keys` is unauthenticated and rate-limited (10/min/IP). Keys use `lmn_` prefix + 48 chars. Only SHA-256 hash stored. Plaintext returned once at creation. `GET /api/keys` and `DELETE /api/keys/:id` are admin-only.
+- **API keys**: `POST /api/keys` is unauthenticated and rate-limited to 10 requests/min/IP to prevent abuse. Keys use `lmn_` prefix + 48 chars. Only SHA-256 hash stored. Plaintext returned once at creation. `GET /api/keys` and `DELETE /api/keys/:id` are admin-only.
 - **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
 - **Backward compat**: `/api/cards` routes to Default project
 - **Homepage**: Static landing page at `/` (`src/public/index.html`) -- links to `/board` and `/api/man`

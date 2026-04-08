@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Documentation
+- Documented `POST /api/keys` rate limit (10 req/min/IP) in README.md, CLAUDE.md, and API manual to improve discoverability
+
 ### Added
 - `.claude/settings.json` with Claude Code hooks for automatic Limoncello integration: PreToolUse/ExitPlanMode hook prompts to create cards for non-trivial plans, Stop hook silently checks for completed work and updates cards
 - Hooks intelligently detect Limoncello configuration by reading CLAUDE.md before activating

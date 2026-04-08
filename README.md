@@ -10,6 +10,18 @@ Open the Kanban board at https://limoncello.fly.dev/board
 
 Create projects, define custom columns, drag cards between columns, and manage your workflow from the browser.
 
+### Get an API Key
+
+Generate an API key for Claude to access your board:
+
+```bash
+curl -X POST https://limoncello.fly.dev/api/keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Claude Agent"}'
+```
+
+The response includes your key (shown once) and setup instructions. **Rate limit: 10 requests/min/IP.**
+
 ### MCP Setup
 
 Connect Claude to Limoncello via the MCP HTTP transport:
@@ -28,7 +40,15 @@ Once connected, Claude can create, list, move, and view cards as part of its wor
 
 API documentation is available at https://limoncello.fly.dev/api/man
 
-All endpoints require `Authorization: Bearer <your-api-key>` header.
+All endpoints require `Authorization: Bearer <your-api-key>` header (except `/health`, `/api/man`, and `POST /api/keys`).
+
+**API Key Management**
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/keys | None | Create agent API key (rate limit: 10 req/min/IP) |
+| GET | /api/keys | Admin | List all agent API keys |
+| DELETE | /api/keys/:id | Admin | Revoke an agent API key |
 
 ## MCP Tools
 
@@ -48,7 +68,7 @@ All card tools accept an optional `project_id` parameter. If omitted, they opera
 
 ## REST API
 
-All requests require `Authorization: Bearer <your-api-key>` header.
+All requests require `Authorization: Bearer <your-api-key>` header (except `/health`, `/api/man`, and `POST /api/keys`).
 
 ### Project Endpoints
 

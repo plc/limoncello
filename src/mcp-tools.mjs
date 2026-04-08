@@ -321,13 +321,45 @@ The board is shared -- the user sees your card updates in real time via the web 
     }
   );
 
+  // Tool: limoncello_get
+  server.tool(
+    'limoncello_get',
+    'Get a single card by ID. Returns full card details including title, description, status, substatus, tags, and timestamps.',
+    {
+      card_id: z.string().describe('Card ID (e.g., crd_abc123)'),
+      project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
+    },
+    async ({ card_id, project_id }) => {
+      const path = project_id
+        ? `/api/projects/${project_id}/cards/${card_id}`
+        : `/api/cards/${card_id}`;
+
+      const card = await api(path);
+
+      // Get project info to show column label
+      const project = await getProjectInfo(project_id);
+      const columnLabels = buildColumnLabels(project);
+      const substatusLabels = buildSubstatusLabels(project);
+      const statusLabel = columnLabels[card.status] || card.status;
+      const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
+      const tagsLabel = card.tags && card.tags.length > 0 ? `\nTags: ${card.tags.map(t => '#' + t).join(' ')}` : '';
+      const desc = card.description ? `\nDescription: ${card.description}` : '';
+
+      const text = `[${card.id}] ${card.title}\nStatus: ${statusLabel}${subLabel}${tagsLabel}${desc}\nCreated: ${card.created_at}\nUpdated: ${card.updated_at}`;
+
+      return {
+        content: [{ type: 'text', text }],
+      };
+    }
+  );
+
   // Tool: limoncello_move
   server.tool(
     'limoncello_move',
     'Move a card to a different status column. Move cards to in_progress when starting work, blocked when waiting, and done when finished.',
     {
       card_id: z.string().describe('Card ID (e.g., crd_abc123)'),
-      status: z.string().describe('Target column'),
+      status: z.string().optional().describe('Target column (optional if only updating tags/substatus)'),
       substatus: z.string().nullable().optional().describe('Sub-status within the target column (null to clear)'),
       tags: z.array(z.string()).optional().describe('Set tags on the card (e.g. ["bug", "urgent"])'),
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
@@ -337,9 +369,19 @@ The board is shared -- the user sees your card updates in real time via the web 
         ? `/api/projects/${project_id}/cards/${card_id}`
         : `/api/cards/${card_id}`;
 
-      const body = { status };
+      const body = {};
+      if (status !== undefined) body.status = status;
       if (substatus !== undefined) body.substatus = substatus;
       if (tags !== undefined) body.tags = tags;
+
+      if (Object.keys(body).length === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: 'Error: At least one of status, substatus, or tags must be provided',
+          }],
+        };
+      }
 
       const card = await api(path, {
         method: 'PATCH',
@@ -354,10 +396,16 @@ The board is shared -- the user sees your card updates in real time via the web 
       const subLabel = card.substatus ? ` [${substatusLabels[card.substatus] || card.substatus}]` : '';
       const tagsLabel = card.tags && card.tags.length > 0 ? ` ${card.tags.map(t => '#' + t).join(' ')}` : '';
 
+      // Build appropriate message based on what was updated
+      let action = 'Updated';
+      if (status !== undefined) {
+        action = 'Moved';
+      }
+
       return {
         content: [{
           type: 'text',
-          text: `Moved "${card.title}" to ${statusLabel}${subLabel}${tagsLabel}`,
+          text: `${action} "${card.title}" ${status !== undefined ? 'to ' : 'in '}${statusLabel}${subLabel}${tagsLabel}`,
         }],
       };
     }
@@ -522,62 +570,44 @@ The board is shared -- the user sees your card updates in real time via the web 
         }
       }
 
-      const text = `CRITICAL: LIMONCELLO ONBOARDING REQUIRED
-=========================================
+      const text = `Limoncello Onboarding
+======================
 
-You have created a dedicated Limoncello board for this codebase.
-Board: ${project.name} (${project.id})
+Created board: ${project.name} (${project.id})
 
-This board is SPECIFIC to this codebase - it is NOT the Default project. Each codebase should have its own dedicated board for tracking its work.
+This board is specific to this codebase. Future sessions won't see it unless documented in CLAUDE.md, which means tasks will be lost and human-added cards ignored.
 
-WHY DOCUMENTING THIS IS CRITICAL:
-Without documenting the board ID in CLAUDE.md, future Claude sessions will not know this project has a Limoncello board. This means:
-- Work tracked on the board will be invisible to future agents
-- Tasks will be duplicated or lost
-- Human-added cards will be ignored
-- The shared coordination system breaks down
+Next steps (with user approval):
 
-YOU MUST document this board in CLAUDE.md and .claude.json now.
+1. Add this section to CLAUDE.md:
 
---- ACTION REQUIRED ---
-
-After presenting this plan to the user for approval, you MUST:
-
-1. Edit (or create) CLAUDE.md in the project root directory
-2. Add the following section (adjust placement as appropriate):
-
+---
 ## Limoncello Board
 
-This project tracks work on a dedicated Limoncello board: **${project.name}** (\`${project.id}\`).
+This project tracks work on: **${project.name}** (\`${project.id}\`)
 
-**IMPORTANT**: This is a project-specific board created for this codebase. Always use this project_id when working with Limoncello tools.
-
-### On session start
-
-At the beginning of every session, check the board for current tasks:
-
+At session start, check for tasks:
 \`\`\`
 limoncello_board(project_id: "${project.id}")
 \`\`\`
 
-### Working on tasks
+Working on tasks:
+- Move cards to \`in_progress\` when starting work
+- Move to \`blocked\` if waiting on human input
+- Move to \`done\` when finished
+- Add new cards to \`backlog\` when discovering work
 
-- Before starting work on a card, move it to \`in_progress\`
-- If blocked (waiting on human input, unclear requirements), move it to \`blocked\`
-- When finished, move it to \`done\`
-- If you discover new work while implementing a task, add it as a new card in \`backlog\`
+The board is shared with humans via the web UI. Check it regularly to stay coordinated.
+---
 
-### Why this matters
+2. Verify CLAUDE.md contains the project ID: ${project.id}
 
-The board is shared between humans and agents. Humans may add, reprioritize, or annotate cards via the web UI between agent sessions. Polling ensures you're working on what matters and not duplicating effort.
+3. Create .claude/settings.json (NOT .claude.json) with hooks configuration.
 
-3. VERIFY the edit was successful by reading CLAUDE.md and confirming it contains the project ID: ${project.id}
+Note: .claude.json is Claude's state file (do not edit manually).
+      .claude/settings.json is the hooks configuration file (this is what you need).
 
-4. Create or edit .claude/settings.json in the project directory with the following hooks configuration:
-
-IMPORTANT: The file MUST be at .claude/settings.json (not .claude.json). Create the .claude directory first if needed.
-
-If .claude/settings.json already exists, read it first and merge the hooks section intelligently. If it doesn't exist, create it with this content:
+If .claude/settings.json exists, read it first and merge the hooks section. Otherwise create it with:
 
 {
   "hooks": {

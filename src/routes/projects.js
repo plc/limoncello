@@ -64,13 +64,17 @@ router.get('/', (req, res) => {
 /**
  * POST /api/projects
  * Create a new project.
- * Body: { name, columns? }
+ * Body: { name, description?, columns? }
  */
 router.post('/', (req, res) => {
-  const { name, columns } = req.body;
+  const { name, description, columns } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim() === '') {
     return res.status(400).json({ error: 'Name is required and must be a non-empty string' });
+  }
+
+  if (description !== undefined && typeof description !== 'string') {
+    return res.status(400).json({ error: 'Description must be a string' });
   }
 
   let normalizedColumns = null;
@@ -102,11 +106,12 @@ router.post('/', (req, res) => {
 
   const id = projectId();
   const columnsJson = normalizedColumns ? JSON.stringify(normalizedColumns) : DEFAULT_COLUMNS;
+  const desc = description !== undefined ? description.trim() : '';
 
   db.prepare(`
-    INSERT INTO projects (id, name, columns, created_at, updated_at)
-    VALUES (?, ?, ?, datetime('now'), datetime('now'))
-  `).run(id, name.trim(), columnsJson);
+    INSERT INTO projects (id, name, description, columns, created_at, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).run(id, name.trim(), desc, columnsJson);
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json({ ...project, columns: JSON.parse(project.columns) });
@@ -126,12 +131,12 @@ router.get('/:id', (req, res) => {
 
 /**
  * PATCH /api/projects/:id
- * Update a project's name and/or columns.
+ * Update a project's name, description, and/or columns.
  * Rejects column removal if cards use that status.
  */
 router.patch('/:id', (req, res) => {
   const { id } = req.params;
-  const { name, columns } = req.body;
+  const { name, description, columns } = req.body;
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   if (!project) {
@@ -140,6 +145,10 @@ router.patch('/:id', (req, res) => {
 
   if (name !== undefined && (typeof name !== 'string' || name.trim() === '')) {
     return res.status(400).json({ error: 'Name must be a non-empty string' });
+  }
+
+  if (description !== undefined && typeof description !== 'string') {
+    return res.status(400).json({ error: 'Description must be a string' });
   }
 
   let normalizedColumns = null;
@@ -214,6 +223,11 @@ router.patch('/:id', (req, res) => {
   if (name !== undefined) {
     updates.push('name = ?');
     params.push(name.trim());
+  }
+
+  if (description !== undefined) {
+    updates.push('description = ?');
+    params.push(description.trim());
   }
 
   if (normalizedColumns !== null) {
