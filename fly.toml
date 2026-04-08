@@ -10,6 +10,7 @@ primary_region = 'sjc'
 
 [env]
   PORT = '3654'
+  PUBLIC_URL = 'https://limoncello.fly.dev'
 
 [mounts]
   source = 'limoncello_data'

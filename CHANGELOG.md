@@ -61,6 +61,7 @@
 - Getting Started section now highlights Streamable HTTP MCP transport as the recommended approach
 
 ### Fixed
+- **CRITICAL**: Fixed Streamable HTTP MCP transport "Session not found" errors on deployed instance - MCP server was hardcoded to `http://localhost:3654` instead of using public URL `https://limoncello.fly.dev`, breaking all remote MCP tool calls
 - **CRITICAL**: Corrected hooks configuration file location from `.claude.json` to `.claude/settings.json` (hooks in `.claude.json` were being ignored)
 - **CRITICAL**: Fixed hook event names to use actual Claude Code API: `PreToolUse` instead of `PermissionRequest`, `Stop` instead of `TaskCompleted`
 - Updated onboarding tool to generate hooks with correct file location and event names

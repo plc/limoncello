@@ -10,6 +10,7 @@
  *
  * Environment variables:
  * - PORT: Server port (default: 3654)
+ * - PUBLIC_URL: Public base URL for MCP server (e.g., https://limoncello.fly.dev; defaults to http://localhost:PORT)
  * - DATABASE_PATH: SQLite file path (default: ./data/limoncello.db)
  * - LIMONCELLO_API_KEY: Bearer token for API auth (optional; if unset, no auth required)
  */
@@ -212,7 +213,8 @@ async function start() {
         }
       };
 
-      const mcpBaseUrl = `http://localhost:${port}`;
+      // Use PUBLIC_URL env var for deployed environments, localhost for dev
+      const mcpBaseUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
       const server = createLimoncelloMcpServer(mcpBaseUrl, adminKey || '');
       await server.connect(transport);
 
