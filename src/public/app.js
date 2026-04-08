@@ -433,6 +433,8 @@ function handleDragEnd() {
   document.querySelectorAll('.column').forEach(col => {
     col.classList.remove('drag-over');
   });
+  // Remove all drag placeholders
+  document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
 }
 
 function handleDragOver(e) {
@@ -441,11 +443,59 @@ function handleDragOver(e) {
   }
   e.dataTransfer.dropEffect = 'move';
   this.classList.add('drag-over');
+
+  // Show placeholder at drop position
+  const column = this.dataset.status;
+  if (column && draggedCard) {
+    updateDragPlaceholder(column, e.clientY);
+  }
+
   return false;
 }
 
-function handleDragLeave() {
-  this.classList.remove('drag-over');
+function updateDragPlaceholder(status, mouseY) {
+  const container = document.querySelector(`.cards-container[data-status="${status}"]`);
+  if (!container) return;
+
+  // Remove existing placeholder
+  const existingPlaceholder = container.querySelector('.drag-placeholder');
+  if (existingPlaceholder) existingPlaceholder.remove();
+
+  // Create placeholder
+  const placeholder = document.createElement('div');
+  placeholder.className = 'drag-placeholder';
+
+  // Find insertion point
+  const cardElements = Array.from(container.querySelectorAll('.card:not(.dragging)'));
+  let insertBeforeCard = null;
+
+  for (const card of cardElements) {
+    const rect = card.getBoundingClientRect();
+    if (mouseY < rect.top + rect.height / 2) {
+      insertBeforeCard = card;
+      break;
+    }
+  }
+
+  // Insert placeholder
+  if (insertBeforeCard) {
+    container.insertBefore(placeholder, insertBeforeCard);
+  } else {
+    container.appendChild(placeholder);
+  }
+}
+
+function handleDragLeave(e) {
+  // Only remove drag-over if we're actually leaving the column
+  const column = this;
+  const relatedTarget = e.relatedTarget;
+
+  if (!column.contains(relatedTarget)) {
+    this.classList.remove('drag-over');
+    // Remove placeholder when leaving column
+    const placeholder = column.querySelector('.drag-placeholder');
+    if (placeholder) placeholder.remove();
+  }
 }
 
 async function handleDrop(e) {

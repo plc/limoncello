@@ -234,6 +234,15 @@ body {
   cursor: grabbing;
 }
 
+.drag-placeholder {
+  background-color: rgba(74, 144, 226, 0.2);
+  border: 2px dashed #4a90e2;
+  border-radius: 6px;
+  height: 60px;
+  margin-bottom: 8px;
+  transition: height 0.2s ease;
+}
+
 .card-title {
   font-size: 14px;
   font-weight: 500;

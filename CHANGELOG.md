@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Drag-and-drop placeholder preview -- when dragging a card, a visual placeholder appears at the drop position and other cards shift to show where it will land
 - Card ID field in card modal -- shows card ID in small, monospace text above the description for easy copying and referencing in Claude Code
 - Welcome card seeded on project creation -- new projects automatically get a helpful welcome card in the first column explaining how to use Limoncello for both humans and AI agents
 - Enhanced 404 responses as discovery mechanism -- 404 errors on /api routes now include helpful hints array suggesting similar endpoints, correcting common mistakes (singular vs plural, missing project ID, etc.), and guiding users to /api/man for documentation
