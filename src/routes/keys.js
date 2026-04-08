@@ -68,7 +68,7 @@ setInterval(() => {
  * POST /api/keys
  * Create a new agent API key. Unauthenticated but rate-limited.
  * Body: { name?: string }
- * Returns: { id, key, name }  (key shown once)
+ * Returns: { id, key, name, setup }  (key shown once)
  */
 router.post('/', rateLimit, (req, res) => {
   const { name = '' } = req.body || {};
@@ -86,7 +86,17 @@ router.post('/', rateLimit, (req, res) => {
     VALUES (?, ?, ?, datetime('now'))
   `).run(id, hash, typeof name === 'string' ? name.trim() : '');
 
-  res.status(201).json({ id, key: plaintext, name: (typeof name === 'string' ? name.trim() : '') });
+  res.status(201).json({
+    id,
+    key: plaintext,
+    name: (typeof name === 'string' ? name.trim() : ''),
+    setup: {
+      warning: 'Save this key now -- it cannot be retrieved later.',
+      mcp_command: `claude mcp add limoncello -s user --transport http --header "Authorization: Bearer ${plaintext}" -- https://limoncello.fly.dev/mcp`,
+      env_var: `export LIMONCELLO_API_KEY=${plaintext}`,
+      docs: 'https://limoncello.fly.dev/api/man'
+    }
+  });
 });
 
 /**
