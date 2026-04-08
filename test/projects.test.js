@@ -681,6 +681,9 @@ describe('Projects API', () => {
         .post('/api/projects')
         .send({ name: 'Empty Project' });
       emptyProjectId = res.body.id;
+
+      // Delete the auto-created welcome card to make project truly empty
+      db.exec(`DELETE FROM cards WHERE project_id = '${emptyProjectId}'`);
     });
 
     it('deletes empty project', async () => {
@@ -691,7 +694,7 @@ describe('Projects API', () => {
     });
 
     it('rejects deleting project with cards', async () => {
-      // Add a card to the project
+      // Re-add a card to the empty project
       db.prepare(`
         INSERT INTO cards (id, project_id, title, status, created_at, updated_at)
         VALUES ('crd_test', ?, 'Test Card', 'backlog', datetime('now'), datetime('now'))

@@ -768,6 +768,8 @@ describe('Cards API', () => {
         .send({ title: 'Card in project 2' })
         .expect(201);
 
+      const originalPosition = card2Res.body.position; // Save original position
+
       // Try to reorder project 2's card via project 1
       const res = await request(app)
         .patch(`/api/projects/${projectId}/cards/reorder`)
@@ -783,7 +785,7 @@ describe('Cards API', () => {
         .get(`/api/projects/${project2Id}/cards/${card2Res.body.id}`)
         .expect(200);
 
-      assert.equal(verifyRes.body.position, 0); // Original position
+      assert.equal(verifyRes.body.position, originalPosition); // Should still have original position
     });
   });
 
