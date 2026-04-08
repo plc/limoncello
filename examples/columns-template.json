@@ -1,5 +1,6 @@
 {
   "name": "My Project",
+  "description": "Optional project description goes here",
   "columns": [
     {"key": "backlog", "label": "Backlog", "substatuses": []},
     {"key": "todo", "label": "To Do", "substatuses": []},

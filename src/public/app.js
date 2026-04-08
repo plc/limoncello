@@ -646,16 +646,19 @@ function openProjectModal(project) {
   const modal = document.getElementById('projectModal');
   const titleEl = document.getElementById('projectModalTitle');
   const nameInput = document.getElementById('projectName');
+  const descInput = document.getElementById('projectDescription');
   const deleteBtn = document.getElementById('deleteProject');
 
   if (project) {
     titleEl.textContent = 'Project Settings';
     nameInput.value = project.name;
+    descInput.value = project.description || '';
     deleteBtn.style.display = 'block';
     renderColumnsEditor(project.columns);
   } else {
     titleEl.textContent = 'New Project';
     nameInput.value = '';
+    descInput.value = '';
     deleteBtn.style.display = 'none';
     renderColumnsEditor([
       { key: 'backlog', label: 'Backlog', substatuses: [] },
@@ -853,6 +856,8 @@ function getColumnsFromEditor() {
 
 async function saveProjectSettings() {
   const name = document.getElementById('projectName').value.trim();
+  const description = document.getElementById('projectDescription').value.trim();
+
   if (!name) {
     alert('Project name is required');
     return;
@@ -870,7 +875,7 @@ async function saveProjectSettings() {
       const response = await apiFetch(`/api/projects/${editingProject.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, columns })
+        body: JSON.stringify({ name, description, columns })
       });
       if (!response.ok) {
         const err = await response.json();
@@ -887,7 +892,7 @@ async function saveProjectSettings() {
       const response = await apiFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, columns })
+        body: JSON.stringify({ name, description, columns })
       });
       if (!response.ok) {
         const err = await response.json();
