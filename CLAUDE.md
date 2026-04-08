@@ -141,6 +141,8 @@ For Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.claude.json`
 
 MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_file`), `limoncello_add` (with substatus), `limoncello_list`, `limoncello_move` (with substatus), `limoncello_board`, `limoncello_changes`, `limoncello_onboard` (generate onboarding plan for a project), `limoncello_bootstrap` (provision API keys)
 
+MCP resources: `limoncello://guide` (comprehensive agent guide for using Limoncello effectively)
+
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
 ### Known Behavior: Deployments Break MCP Sessions

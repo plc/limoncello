@@ -229,8 +229,16 @@ Shared tool definitions live in `src/mcp-tools.mjs`.
 | `limoncello_create_project` | Create a project with name, optional inline columns, or a `columns_file` path to load columns from a JSON file |
 | `limoncello_add` | Create a card with title, optional status, substatus, description, and project_id |
 | `limoncello_list` | List cards (displays sub-status labels), optionally filtered by status and project_id |
+| `limoncello_get` | Get a single card by ID with full details |
 | `limoncello_move` | Move a card to a different status, with optional substatus and project_id |
-| `limoncello_board` | Show board summary with card counts and listing (displays sub-status labels), with optional project_id |
+| `limoncello_board` | Show board summary with card counts and listing (displays sub-status labels), with optional project_id and format |
+| `limoncello_changes` | Get cards changed since a timestamp (for polling during long sessions) |
+| `limoncello_onboard` | Generate onboarding plan for integrating Limoncello into a project's workflow |
+| `limoncello_bootstrap` | Provision a new API key for agent access |
+
+| Resource | Description |
+|----------|-------------|
+| `limoncello://guide` | Comprehensive agent guide for using Limoncello effectively, including workflows, best practices, use cases, and troubleshooting |
 
 The `limoncello_create_project` tool accepts an optional `columns_file` parameter -- a local file path to a JSON file containing `name` (optional) and `columns` (array). When provided, the file's columns take precedence over inline `columns`. The `name` parameter takes precedence over the file's `name`. See `examples/columns-template.json` for the file format.
 
