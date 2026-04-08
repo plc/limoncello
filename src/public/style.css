@@ -421,6 +421,29 @@ body {
   padding: 20px;
 }
 
+.card-id-container {
+  margin-bottom: 16px;
+}
+
+.card-id-input {
+  width: 100%;
+  background-color: #0f3460;
+  color: #7b8db8;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: monospace;
+  outline: none;
+  cursor: text;
+  transition: border-color 0.2s ease;
+}
+
+.card-id-input:focus {
+  border-color: #4a90e2;
+  color: #a8b2d1;
+}
+
 .modal-body label {
   display: block;
   font-size: 14px;

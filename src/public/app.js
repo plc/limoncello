@@ -540,9 +540,11 @@ function openCardModal(card) {
   const modal = document.getElementById('cardModal');
   const title = document.getElementById('modalTitle');
   const description = document.getElementById('modalDescription');
+  const cardId = document.getElementById('modalCardId');
 
   title.textContent = card.title;
   description.value = card.description || '';
+  cardId.value = card.id;
 
   // Tags input
   const tagsInput = document.getElementById('modalTags');

@@ -6,7 +6,7 @@
 
 const express = require('express');
 const { db, DEFAULT_COLUMNS } = require('../db');
-const { projectId } = require('../lib/ids');
+const { projectId, cardId } = require('../lib/ids');
 
 const router = express.Router();
 
@@ -112,6 +112,40 @@ router.post('/', (req, res) => {
     INSERT INTO projects (id, name, description, columns, created_at, updated_at)
     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
   `).run(id, name.trim(), desc, columnsJson);
+
+  // Create a welcome card in the first column
+  const parsedColumns = JSON.parse(columnsJson);
+  const firstColumnKey = parsedColumns[0].key;
+  const welcomeCardId = cardId();
+  const welcomeTitle = 'Welcome to Limoncello!';
+  const welcomeDescription = `This is your Limoncello board. Here's how to get started:
+
+**For Humans (Web UI):**
+- Click the + button in any column to add a new card
+- Drag cards between columns to update their status
+- Click a card to edit its title, description, or tags
+- Use tags to categorize and filter your work
+
+**For AI Agents (MCP):**
+Agents can interact with this board via the Limoncello MCP server. Common operations:
+- \`limoncello_add\` -- create a new card
+- \`limoncello_list\` -- list cards (filter by status or tag)
+- \`limoncello_move\` -- update card status or tags
+- \`limoncello_board\` -- view board summary
+- \`limoncello_changes\` -- poll for changes since a timestamp
+
+**Tips:**
+- Move cards to "In Progress" when you start work
+- Use "Blocked" status when waiting for input or dependencies
+- Mark cards as "Done" when complete
+- Add new cards whenever you discover work that needs tracking
+
+You can delete this card once you're comfortable with the basics.`;
+
+  db.prepare(`
+    INSERT INTO cards (id, project_id, title, description, status, position, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))
+  `).run(welcomeCardId, id, welcomeTitle, welcomeDescription, firstColumnKey);
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json({ ...project, columns: JSON.parse(project.columns) });

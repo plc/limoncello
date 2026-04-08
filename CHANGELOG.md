@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Welcome card seeded on project creation -- new projects automatically get a helpful welcome card in the first column explaining how to use Limoncello for both humans and AI agents
 - `limoncello_get` MCP tool -- fetch a single card by ID with full details including title, description, status, substatus, tags, and timestamps
 - Structured output option for `limoncello_board` -- new `format` parameter accepts "text" (default) or "json" for programmatic parsing
 - JSON format returns structured data with project info, columns array (with labels and card counts), and full card details with both raw keys and human-readable labels
