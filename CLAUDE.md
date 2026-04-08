@@ -161,6 +161,14 @@ Or use `limoncello_changes` with a `since` timestamp if you know when your last 
 - When finished, move it to `done`
 - If you discover new work while implementing a task, add it as a new card in `backlog`
 
+### Automated workflow (hooks)
+
+This project has Claude Code hooks configured in `.claude.json` that automatically:
+- **After ExitPlanMode**: Prompt to create Limoncello cards for non-trivial plans (tracks each step)
+- **After TaskCompleted**: Check for matching Limoncello cards and move them to `done`, then commit changes
+
+These hooks intelligently detect if Limoncello is configured by reading CLAUDE.md, so they're safe to copy to other projects.
+
 ### Why this matters
 
 The board is shared between humans and agents. Humans may add, reprioritize, or annotate cards via the web UI between agent sessions. Polling ensures you're working on what matters and not duplicating effort.

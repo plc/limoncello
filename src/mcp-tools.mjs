@@ -555,23 +555,41 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 
 3. VERIFY the edit was successful by reading CLAUDE.md and confirming it contains the project ID: ${project.id}
 
---- OPTIONAL: Add Claude Code hooks ---
+--- RECOMMENDED: Add Claude Code hooks to .claude.json ---
 
-For maximum integration, suggest the user add hooks to their Claude Code settings (~/.claude/settings.json) that automatically remind the agent to check the board:
+For seamless integration, add hooks to the project's .claude.json file (create it if it doesn't exist) that automatically manage Limoncello cards during work:
 
-Stop hook (runs after each turn where files were edited):
 {
-  "type": "agent",
-  "prompt": "Claude just finished a turn. Only act if files were actually edited this turn -- if this was a conversation-only turn, respond with {\\"ok\\": true}.\\n\\nIf files were edited:\\n1. Read CLAUDE.md in the current working directory. If it contains a Limoncello board reference, check whether any Limoncello cards correspond to the completed work and need a status update. If so, respond with {\\"ok\\": false, \\"reason\\": \\"Update the relevant Limoncello card status to reflect the completed work, then commit any uncommitted changes.\\"}.\\n2. If nothing needs doing, respond with {\\"ok\\": true}.",
-  "timeout": 60
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the plan that was just presented. First, determine if it is non-trivial — defined as having more than 3 steps OR touching multiple files OR spanning multiple concerns. If the plan is trivial, respond with {\\"ok\\": true}.\\n\\nIf non-trivial, read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \\"limoncello_board\\" or a project ID matching \\"prj_\\").\\n\\nThen respond with JSON only:\\n\\n- If Limoncello IS referenced with a project ID: {\\"ok\\": false, \\"reason\\": \\"Before proceeding with implementation, create Limoncello cards to track this work. Extract the project_id from CLAUDE.md (format: prj_XXXXX), then use limoncello_add to create cards for each major step of the plan. This ensures the work is tracked and visible to both you and the user on the shared board.\\"}\\n- If Limoncello is mentioned but no project ID found: {\\"ok\\": false, \\"reason\\": \\"CLAUDE.md mentions Limoncello but doesn't specify a project ID. Ask the user: Should I create a Limoncello project for this work and update CLAUDE.md with the board reference?\\"}\\n- If Limoncello is NOT referenced: {\\"ok\\": false, \\"reason\\": \\"Ask the user: This is a non-trivial task. This project doesn't use Limoncello for project management yet — should I set up a Limoncello board to track this work? (I can create a project, document it in CLAUDE.md, and create cards for each plan step.)\\"}"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "A task was just marked as completed. Do the following in order:\\n\\n1. Read CLAUDE.md in the current working directory to check if it contains a Limoncello board reference (look for \\"limoncello_board\\" or a project ID matching \\"prj_\\").\\n\\n2. If Limoncello IS referenced:\\n   a. Extract the project_id from CLAUDE.md (format: prj_XXXXX)\\n   b. Use limoncello_list with that project_id and status=\\"in_progress\\" to check for cards currently being worked on\\n   c. If any cards match the completed task, respond with {\\"ok\\": false, \\"reason\\": \\"Move the relevant Limoncello card(s) to done using limoncello_move, then commit any uncommitted changes with a descriptive conventional commit message that references the card ID.\\"}\\n   d. If no matching cards but there are uncommitted changes, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n3. If Limoncello is NOT referenced, check for uncommitted changes. If there are any, respond with {\\"ok\\": false, \\"reason\\": \\"Commit the uncommitted changes with a descriptive conventional commit message.\\"}\\n\\n4. If nothing needs doing, respond with {\\"ok\\": true}.",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
 }
 
-TaskCompleted hook (runs when a task is marked complete):
-{
-  "type": "agent",
-  "prompt": "A task was just marked as completed. Read CLAUDE.md in the current working directory. If it contains a Limoncello board reference, check whether any Limoncello cards correspond to the completed work and should have their status updated. If so, respond with {\\"ok\\": false, \\"reason\\": \\"Update the relevant Limoncello card status to reflect the completed work.\\"}.\\nIf nothing needs doing, respond with {\\"ok\\": true}.",
-  "timeout": 60
-}
+These hooks will:
+- After exiting plan mode for non-trivial tasks, prompt to create Limoncello cards for each step
+- After completing a task, automatically move matching Limoncello cards to "done"
+- Only activate when Limoncello is configured in CLAUDE.md (safe for all projects)
 
 --- FINAL STEP ---
 
