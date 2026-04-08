@@ -140,6 +140,25 @@ MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_fil
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
+### Known Behavior: Deployments Break MCP Sessions
+
+**MCP sessions are stored in memory and do not persist across server restarts.** When Limoncello is deployed to Fly.io, all active MCP sessions are lost.
+
+**What this means:**
+- During/after a deployment, MCP tool calls will fail with "Session not found" errors
+- Claude Code will automatically reconnect on the next tool call
+- Simply retry the failed tool call - the connection will be re-established automatically
+- No manual intervention needed
+
+**Why this happens:**
+- Sessions are stored in a Map() in src/index.js (in-memory only)
+- Deployments restart the server, clearing all in-memory data
+- No session persistence to SQLite (intentional trade-off for simplicity)
+
+**Impact:**
+- Minimal - deployments are infrequent and reconnects are automatic
+- If this becomes a pain point, session persistence can be added later
+
 ### Onboarding a New Project
 
 When setting up Limoncello for a new codebase:

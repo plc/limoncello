@@ -66,6 +66,11 @@
 - **CRITICAL**: Fixed hook event names to use actual Claude Code API: `PreToolUse` instead of `PermissionRequest`, `Stop` instead of `TaskCompleted`
 - Updated onboarding tool to generate hooks with correct file location and event names
 
+### Documentation
+- Documented known limitation: MCP sessions break during deployments (sessions are in-memory only)
+- Added "Known Behavior: Deployments Break MCP Sessions" section to CLAUDE.md with explanation and mitigation (automatic reconnect)
+- Added deployment session behavior note to README.md MCP Setup section
+
 ### Removed
 - Slash commands (.claude/commands/) removed in favor of MCP tools
 

@@ -22,6 +22,8 @@ claude mcp add limoncello -s user --transport http \
 
 Once connected, Claude can create, list, move, and view cards as part of its workflow.
 
+**Note:** MCP sessions are stored in memory and break during server deployments. If you see "Session not found" errors after a deployment, simply retry the tool call - Claude Code will automatically reconnect.
+
 ### REST API
 
 API documentation is available at https://limoncello.fly.dev/api/man
