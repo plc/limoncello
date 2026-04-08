@@ -6,6 +6,8 @@ When working with AI agents (Claude Code in particular), there is no lightweight
 
 Limoncello solves this by providing a simple Trello-style board where both humans and AI agents can create, view, move, and manage cards.
 
+**Terminology note:** In Limoncello, a "project" is a board with custom columns (think: separate Trello boards). Cards are individual tasks that belong to a project/board. Each software codebase typically gets its own dedicated Limoncello project/board for tracking work.
+
 ## 2. Goals
 
 - A human can open a browser, see a board with columns, and drag cards between them
@@ -109,15 +111,17 @@ When a card moves to a different column, its substatus is automatically cleared 
 
 All endpoints return JSON. Errors return `{ "error": "message" }`.
 
-### Project Endpoints
+### Board Endpoints (Projects)
+
+**Terminology:** "Project" in Limoncello = board with custom columns. Cards = tasks on that board.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /api/projects | List all projects |
-| POST | /api/projects | Create a project |
-| GET | /api/projects/:id | Get a single project |
-| PATCH | /api/projects/:id | Update a project (partial) |
-| DELETE | /api/projects/:id | Delete a project (204) |
+| GET | /api/projects | List all boards |
+| POST | /api/projects | Create a board |
+| GET | /api/projects/:id | Get a single board |
+| PATCH | /api/projects/:id | Update a board (partial) |
+| DELETE | /api/projects/:id | Delete a board (204) |
 
 ### Card Endpoints (Project-scoped)
 

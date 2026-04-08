@@ -2,12 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+- `limoncello_get` MCP tool -- fetch a single card by ID with full details including title, description, status, substatus, tags, and timestamps
+- Structured output option for `limoncello_board` -- new `format` parameter accepts "text" (default) or "json" for programmatic parsing
+- JSON format returns structured data with project info, columns array (with labels and card counts), and full card details with both raw keys and human-readable labels
+
 ### Changed
+- `limoncello_move` status parameter is now optional -- allows updating just tags or substatus without changing the card's column
 - Shortened `limoncello_onboard` output to be more concise and professional -- removed excessive capitalization, repetition, and emphasis while keeping all critical information
 - Clarified .claude.json vs .claude/settings.json distinction in onboarding output -- added clear note explaining that .claude.json is Claude's state file (do not edit) and .claude/settings.json is the hooks configuration file (this is what you need)
 
 ### Documentation
 - Documented `POST /api/keys` rate limit (10 req/min/IP) in README.md, CLAUDE.md, and API manual to improve discoverability
+- Clarified "project" terminology across all docs (README, CLAUDE.md, SPEC.md, API manual) to avoid confusion with software projects -- added notes explaining that a "project" in Limoncello is a board with custom columns (like separate Trello boards), and each software codebase typically gets its own Limoncello project/board
 
 ### Added
 - `.claude/settings.json` with Claude Code hooks for automatic Limoncello integration: PreToolUse/ExitPlanMode hook prompts to create cards for non-trivial plans, Stop hook silently checks for completed work and updates cards

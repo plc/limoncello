@@ -56,8 +56,8 @@ The MCP server provides these tools for Claude:
 
 | Tool | Description |
 |------|-------------|
-| `limoncello_projects` | List all projects with their names, IDs, and columns |
-| `limoncello_create_project` | Create a project with name and optional custom columns |
+| `limoncello_projects` | List all boards with their names, IDs, and columns |
+| `limoncello_create_project` | Create a board with name and optional custom columns |
 | `limoncello_add` | Create a card with title, optional status, substatus, description, and project_id |
 | `limoncello_list` | List cards, optionally filtered by status and project_id |
 | `limoncello_move` | Move a card to a different status, with optional substatus and project_id |
@@ -66,19 +66,23 @@ The MCP server provides these tools for Claude:
 
 All card tools accept an optional `project_id` parameter. If omitted, they operate on the Default project.
 
+**Terminology note:** In Limoncello, a "project" is a board with custom columns (like separate Trello boards). Cards are individual tasks that belong to a project/board. Each codebase typically gets its own dedicated Limoncello project/board.
+
 ## REST API
 
 All requests require `Authorization: Bearer <your-api-key>` header (except `/health`, `/api/man`, and `POST /api/keys`).
 
-### Project Endpoints
+**Terminology note:** In Limoncello, a "project" is a board with custom columns. Think of it like separate Trello boards. Cards are tasks that belong to a project/board.
+
+### Board Endpoints (Projects)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /api/projects | List all projects |
-| POST | /api/projects | Create a project `{ name, columns? }` |
-| GET | /api/projects/:id | Get a project |
-| PATCH | /api/projects/:id | Update a project |
-| DELETE | /api/projects/:id | Delete a project |
+| GET | /api/projects | List all boards |
+| POST | /api/projects | Create a board `{ name, columns? }` |
+| GET | /api/projects/:id | Get a board |
+| PATCH | /api/projects/:id | Update a board |
+| DELETE | /api/projects/:id | Delete a board |
 
 ### Card Endpoints (Project-scoped)
 

@@ -53,6 +53,7 @@ const manual = {
   },
 
   concepts: {
+    terminology: 'IMPORTANT: In Limoncello, a "project" is a board with custom columns (like separate Trello boards). Cards are individual tasks that belong to a project/board. This naming can be confusing when working on software projects, but each software codebase typically gets its own dedicated Limoncello project/board.',
     projects: 'A project is a board with its own set of columns. Every card belongs to a project. A Default project is created on first run.',
     cards: 'A card is a task or item on the board. It has a title, optional description, status (column), optional substatus, optional tags, and a position within its column.',
     columns: 'Each project defines an ordered list of columns (statuses). Default columns: backlog, todo, in_progress, blocked, done. Column keys are lowercase with underscores.',

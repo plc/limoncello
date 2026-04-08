@@ -6,6 +6,8 @@ Instructions for Claude Code. See [SPEC.md](SPEC.md) for the full product spec.
 
 Limoncello is a Kanban board for human-AI collaboration. Humans use the web UI, Claude uses the MCP server. Both create and manage cards on shared projects.
 
+**Terminology note:** In Limoncello, a "project" is a board with custom columns (like separate Trello boards). Cards are individual tasks that belong to a project/board. This naming can be confusing when working on software projects, but: each software codebase typically gets its own dedicated Limoncello project/board for tracking work.
+
 Projects feature: Each project has its own custom columns. Cards belong to projects. The Default project provides backward compatibility.
 
 Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend.
@@ -206,15 +208,17 @@ The board is shared between humans and agents. Humans may add, reprioritize, or 
 
 ## API Endpoints
 
-### Project Endpoints
+### Board Endpoints (Projects)
+
+**Terminology reminder:** "Project" in Limoncello = board with custom columns. Cards = tasks on that board.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /api/projects | List projects |
-| POST | /api/projects | Create project |
-| GET | /api/projects/:id | Get project |
-| PATCH | /api/projects/:id | Update project |
-| DELETE | /api/projects/:id | Delete project |
+| GET | /api/projects | List all boards |
+| POST | /api/projects | Create a board |
+| GET | /api/projects/:id | Get a board |
+| PATCH | /api/projects/:id | Update a board |
+| DELETE | /api/projects/:id | Delete a board |
 
 ### Card Endpoints (Project-scoped)
 

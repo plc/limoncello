@@ -146,7 +146,6 @@ The board is shared -- the user sees your card updates in real time via the web 
     'Create a new Limoncello project with custom columns. Columns can be provided inline or loaded from a JSON file.',
     {
       name: z.string().optional().describe('Project name (required unless columns_file provides one)'),
-      description: z.string().optional().describe('Optional project description'),
       columns: z.array(z.object({
         key: z.string().describe('Column key (lowercase, underscores, e.g. "in_review")'),
         label: z.string().describe('Column display label (e.g. "In Review")'),
@@ -155,9 +154,9 @@ The board is shared -- the user sees your card updates in real time via the web 
           label: z.string().describe('Sub-status label'),
         })).optional().describe('Optional sub-statuses for this column'),
       })).optional().describe('Custom columns (default: Backlog, To Do, In Progress, Blocked, Done)'),
-      columns_file: z.string().optional().describe('Path to a JSON file with project definition (name, description, and columns). File takes precedence over inline parameters.'),
+      columns_file: z.string().optional().describe('Path to a JSON file with project definition (name and columns). File takes precedence over inline columns.'),
     },
-    async ({ name, description, columns, columns_file }) => {
+    async ({ name, columns, columns_file }) => {
       let fileDef = {};
       if (columns_file) {
         try {
@@ -184,12 +183,7 @@ The board is shared -- the user sees your card updates in real time via the web 
       }
 
       const body = { name: projectName };
-      // File takes precedence over inline parameters
-      const projectDesc = fileDef.description || description;
-      if (projectDesc) {
-        body.description = projectDesc;
-      }
-      
+      // File columns take precedence over inline columns
       if (fileDef.columns) {
         body.columns = fileDef.columns;
       } else if (columns) {
