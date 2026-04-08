@@ -3,8 +3,9 @@
 ## [Unreleased]
 
 ### Added
-- `.claude/settings.json` with Claude Code hooks for automatic Limoncello integration: PreToolUse/ExitPlanMode hook prompts to create cards for non-trivial plans, Stop hook updates card status and commits changes after work is done
+- `.claude/settings.json` with Claude Code hooks for automatic Limoncello integration: PreToolUse/ExitPlanMode hook prompts to create cards for non-trivial plans, Stop hook silently checks for completed work and updates cards
 - Hooks intelligently detect Limoncello configuration by reading CLAUDE.md before activating
+- Stop hook is designed to be silent and non-intrusive: only acts when substantial work was done AND matching in_progress cards exist, otherwise passes without output
 - Zero-auth agent bootstrapping: agents can self-provision API keys without human intervention
 - `POST /api/keys` -- unauthenticated, rate-limited endpoint (10 req/min/IP) returns a one-time plaintext key (`lmn_` prefix, 48 chars)
 - `GET /api/keys` -- admin-only endpoint to list all agent keys (id, name, created_at, last_used, revoked status)

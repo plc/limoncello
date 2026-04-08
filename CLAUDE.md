@@ -173,10 +173,12 @@ Or use `limoncello_changes` with a `since` timestamp if you know when your last 
 ### Automated workflow (hooks)
 
 This project has Claude Code hooks in `.claude/settings.json` (added during Limoncello onboarding) that automatically:
-- **PreToolUse/ExitPlanMode**: Before exiting plan mode for non-trivial tasks, prompt to create Limoncello cards for each step
-- **Stop**: After each turn where work was done, check for matching Limoncello cards and move them to `done`, then commit changes
+- **PreToolUse/ExitPlanMode**: Before exiting plan mode for non-trivial tasks, prompts to create Limoncello cards for each major step
+- **Stop (silent)**: After each turn, silently checks if substantial work was done and matching Limoncello cards exist. Only acts (moves cards to done) when needed, otherwise passes silently without output
 
-These hooks intelligently detect if Limoncello is configured by reading CLAUDE.md. The `limoncello_onboard` MCP tool creates these hooks automatically when setting up a new project.
+The hooks intelligently detect if Limoncello is configured by reading CLAUDE.md. The `limoncello_onboard` MCP tool creates these hooks automatically when setting up a new project.
+
+The Stop hook is designed to be non-intrusive - it only interrupts workflow when it's actually going to move a card or commit changes.
 
 ### Why this matters
 
