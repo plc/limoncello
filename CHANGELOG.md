@@ -34,7 +34,8 @@
 - Tags test coverage (13 tests)
 
 ### Changed
-- Enhanced `limoncello_onboard` MCP tool to be more proactive: now instructs agents to edit BOTH CLAUDE.md AND .claude.json directly (with approval), verify the changes, and emphasizes the critical importance of documenting the board's project ID
+- Enhanced `limoncello_onboard` MCP tool to enforce creating NEW projects: now requires project_id parameter (rejects calls without it), instructs agents to create a dedicated board for each codebase using limoncello_create_project BEFORE onboarding, and emphasizes that each codebase should have its own board (not share the Default project)
+- `limoncello_onboard` now instructs agents to edit BOTH CLAUDE.md AND .claude.json directly (with approval), verify the changes, and emphasizes the critical importance of documenting the board's project ID
 - Onboarding process now creates/edits `.claude.json` with automation hooks (ExitPlanMode and TaskCompleted) instead of just showing copy-paste examples
 - MCP server instructions updated to strongly emphasize documenting the board in both CLAUDE.md and .claude.json as critical requirements
 - Onboarding plan text strengthened with clear explanation of why documentation is essential (prevents work loss, duplication, and coordination breakdowns)

@@ -97,7 +97,12 @@ IMPORTANT -- DO THESE THINGS:
 
 3. POLL FOR CHANGES: During long sessions, periodically call limoncello_changes to check if the user has added or moved cards via the web UI.
 
-4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST call limoncello_onboard and OFFER TO MAKE THE EDITS DIRECTLY. Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated. After getting approval, edit both CLAUDE.md AND .claude.json (with automation hooks), then verify both changes were made correctly.
+4. CRITICAL -- DOCUMENT THE BOARD: If the project you're working on doesn't reference Limoncello in its CLAUDE.md (or equivalent), you MUST:
+   a. CREATE A NEW LIMONCELLO PROJECT for this codebase using limoncello_create_project with a descriptive name (e.g., "MyApp Development", "Acme Corp Backend"). Each codebase should have its own dedicated board, NOT share the Default project.
+   b. Call limoncello_onboard with the new project_id and OFFER TO MAKE THE EDITS DIRECTLY.
+   c. After getting approval, edit both CLAUDE.md AND .claude.json (with automation hooks), then verify both changes were made correctly.
+
+   Documenting the board's project ID in CLAUDE.md is essential -- without it, future sessions won't know this project has a board, and work will be lost or duplicated.
 
 The board is shared -- the user sees your card updates in real time via the web UI at /board. Treat the board as the source of truth for what needs doing.`,
   });
@@ -476,16 +481,25 @@ The board is shared -- the user sees your card updates in real time via the web 
   // Tool: limoncello_onboard
   server.tool(
     'limoncello_onboard',
-    'CRITICAL ONBOARDING TOOL: Call this if the project does not reference Limoncello in its CLAUDE.md. After calling this tool, you MUST offer to edit CLAUDE.md directly (with user approval) to document the board. Without this documentation, future sessions will not know the board exists.',
+    'CRITICAL ONBOARDING TOOL: Call this when a project does not reference Limoncello in its CLAUDE.md. IMPORTANT: You must CREATE A NEW LIMONCELLO PROJECT first (using limoncello_create_project with a descriptive name matching the codebase), then call this tool with that project_id. Each codebase should have its own dedicated Limoncello board. After calling this tool, you MUST offer to edit CLAUDE.md and .claude.json directly (with user approval).',
     {
-      project_id: z.string().optional().describe('Project ID (defaults to Default project)'),
+      project_id: z.string().describe('Project ID of the NEW Limoncello project you just created for this codebase (REQUIRED - do not use Default project)'),
       project_dir: z.string().optional().describe('Path to the project root directory (for reading/checking CLAUDE.md)'),
     },
     async ({ project_id, project_dir }) => {
+      if (!project_id) {
+        return {
+          content: [{
+            type: 'text',
+            text: 'ERROR: project_id is required. You must create a NEW Limoncello project first using limoncello_create_project (with a name matching this codebase), then call limoncello_onboard with that project_id. Each codebase should have its own dedicated board.',
+          }],
+        };
+      }
+
       const project = await getProjectInfo(project_id);
       if (!project) {
         return {
-          content: [{ type: 'text', text: 'No project found.' }],
+          content: [{ type: 'text', text: 'No project found. Create a new Limoncello project first using limoncello_create_project.' }],
         };
       }
 
@@ -511,17 +525,19 @@ The board is shared -- the user sees your card updates in real time via the web 
       const text = `CRITICAL: LIMONCELLO ONBOARDING REQUIRED
 =========================================
 
-This project is connected to Limoncello but is NOT documented in CLAUDE.md.
+You have created a dedicated Limoncello board for this codebase.
 Board: ${project.name} (${project.id})
 
-WHY THIS IS CRITICAL:
+This board is SPECIFIC to this codebase - it is NOT the Default project. Each codebase should have its own dedicated board for tracking its work.
+
+WHY DOCUMENTING THIS IS CRITICAL:
 Without documenting the board ID in CLAUDE.md, future Claude sessions will not know this project has a Limoncello board. This means:
 - Work tracked on the board will be invisible to future agents
 - Tasks will be duplicated or lost
 - Human-added cards will be ignored
 - The shared coordination system breaks down
 
-YOU MUST fix this now.
+YOU MUST document this board in CLAUDE.md and .claude.json now.
 
 --- ACTION REQUIRED ---
 
@@ -532,7 +548,9 @@ After presenting this plan to the user for approval, you MUST:
 
 ## Limoncello Board
 
-This project tracks work on a Limoncello board: **${project.name}** (\`${project.id}\`).
+This project tracks work on a dedicated Limoncello board: **${project.name}** (\`${project.id}\`).
+
+**IMPORTANT**: This is a project-specific board created for this codebase. Always use this project_id when working with Limoncello tools.
 
 ### On session start
 

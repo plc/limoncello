@@ -140,6 +140,15 @@ MCP tools: `limoncello_projects`, `limoncello_create_project` (with `columns_fil
 
 All card tools accept optional `project_id` parameter (defaults to Default project).
 
+### Onboarding a New Project
+
+When setting up Limoncello for a new codebase:
+1. **Create a dedicated project** first: `limoncello_create_project` with a descriptive name matching the codebase
+2. **Then run onboarding**: `limoncello_onboard` with the new project_id
+3. The agent will automatically edit CLAUDE.md and .claude.json with board documentation and automation hooks
+
+**IMPORTANT**: Each codebase should have its own dedicated Limoncello project, NOT share the Default project.
+
 ## Working with the Limoncello Board
 
 This project tracks its own work on a Limoncello board: **Limoncello Dev** (`prj_vDi0hGAhCrUP`).
