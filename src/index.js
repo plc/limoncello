@@ -152,9 +152,52 @@ app.use('/api/cards', requireAuth, (req, res, next) => {
   next();
 }, cardsRouter);
 
-// 404 catch-all for API routes
+// 404 catch-all for API routes with helpful discovery hints
 app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'Not found' });
+  const path = req.path.toLowerCase();
+  const method = req.method;
+  const response = { error: 'Not found' };
+
+  // Suggest similar endpoints based on common mistakes
+  const hints = [];
+
+  // Singular/plural confusion
+  if (path === '/card' || path.startsWith('/card/')) {
+    hints.push('Did you mean /api/cards (plural)?');
+  } else if (path === '/project' || path.startsWith('/project/')) {
+    hints.push('Did you mean /api/projects (plural)?');
+  } else if (path === '/key' || path.startsWith('/key/')) {
+    hints.push('Did you mean /api/keys (plural)?');
+  }
+
+  // Missing /api prefix (shouldn't happen in this middleware, but defensive)
+  if (path.startsWith('/cards') || path.startsWith('/projects') || path.startsWith('/keys')) {
+    hints.push('Routes should include /api prefix: /api/cards, /api/projects, /api/keys');
+  }
+
+  // Project-scoped card routes
+  if (path.match(/^\/cards\/[a-z0-9_]+/) && !path.includes('/projects/')) {
+    hints.push('Card operations are project-scoped. Use /api/projects/{projectId}/cards or /api/cards for Default project.');
+  }
+
+  // Missing project ID
+  if (path === '/projects//cards' || path.match(/\/projects\/\/cards/)) {
+    hints.push('Missing project ID. Use /api/projects/{projectId}/cards');
+  }
+
+  // Old MCP endpoint (if someone tries /api/mcp instead of /mcp)
+  if (path === '/mcp') {
+    hints.push('MCP endpoint is at /mcp (no /api prefix)');
+  }
+
+  // Guide to available endpoints
+  if (hints.length === 0) {
+    hints.push('Available endpoints: /api/man (API documentation), /api/projects, /api/cards, /api/keys');
+    hints.push(`Received: ${method} /api${path}`);
+  }
+
+  response.hints = hints;
+  res.status(404).json(response);
 });
 
 // Error handling
