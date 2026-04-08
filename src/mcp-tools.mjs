@@ -146,6 +146,7 @@ The board is shared -- the user sees your card updates in real time via the web 
     'Create a new Limoncello project with custom columns. Columns can be provided inline or loaded from a JSON file.',
     {
       name: z.string().optional().describe('Project name (required unless columns_file provides one)'),
+      description: z.string().optional().describe('Optional project description'),
       columns: z.array(z.object({
         key: z.string().describe('Column key (lowercase, underscores, e.g. "in_review")'),
         label: z.string().describe('Column display label (e.g. "In Review")'),
@@ -472,8 +473,9 @@ The board is shared -- the user sees your card updates in real time via the web 
     'Show board summary with card counts and listings. CALL THIS AT THE START OF EVERY SESSION to check for pending tasks and priorities.',
     {
       project_id: z.string().optional().describe('Project ID (if not provided, uses Default project)'),
+      format: z.enum(['text', 'json']).optional().describe('Output format: "text" for formatted text (default), "json" for structured data'),
     },
-    async ({ project_id }) => {
+    async ({ project_id, format = 'text' }) => {
       const path = project_id ? `/api/projects/${project_id}/cards` : '/api/cards';
       const cards = await api(path);
 
@@ -490,6 +492,23 @@ The board is shared -- the user sees your card updates in real time via the web 
       const columnKeys = project.columns.map(c => c.key);
 
       if (cards.length === 0) {
+        if (format === 'json') {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                project: { id: project.id, name: project.name },
+                columns: columnKeys.map(key => ({
+                  key,
+                  label: columnLabels[key],
+                  count: 0,
+                  cards: [],
+                })),
+                total: 0,
+              }, null, 2),
+            }],
+          };
+        }
         return {
           content: [{ type: 'text', text: 'The board is empty.' }],
         };
@@ -504,6 +523,39 @@ The board is shared -- the user sees your card updates in real time via the web 
         }
       }
 
+      if (format === 'json') {
+        const structured = {
+          project: { id: project.id, name: project.name },
+          columns: columnKeys.map(key => ({
+            key,
+            label: columnLabels[key],
+            count: grouped[key].length,
+            cards: grouped[key].sort((a, b) => a.position - b.position).map(card => ({
+              id: card.id,
+              title: card.title,
+              description: card.description || null,
+              status: card.status,
+              statusLabel: columnLabels[card.status] || card.status,
+              substatus: card.substatus || null,
+              substatusLabel: card.substatus ? (substatusLabels[card.substatus] || card.substatus) : null,
+              tags: card.tags || [],
+              position: card.position,
+              created_at: card.created_at,
+              updated_at: card.updated_at,
+            })),
+          })),
+          total: cards.length,
+        };
+
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(structured, null, 2),
+          }],
+        };
+      }
+
+      // Text format (existing behavior)
       let text = 'BOARD SUMMARY\n=============\n';
       text += `Project: ${project.name}\n\n`;
       for (const key of columnKeys) {
@@ -529,7 +581,7 @@ The board is shared -- the user sees your card updates in real time via the web 
   // Tool: limoncello_onboard
   server.tool(
     'limoncello_onboard',
-    'CRITICAL ONBOARDING TOOL: Call this when a project does not reference Limoncello in its CLAUDE.md. IMPORTANT: You must CREATE A NEW LIMONCELLO PROJECT first (using limoncello_create_project with a descriptive name matching the codebase), then call this tool with that project_id. Each codebase should have its own dedicated Limoncello board. After calling this tool, you MUST offer to edit CLAUDE.md and .claude.json directly (with user approval).',
+    'CRITICAL ONBOARDING TOOL: Call this when a project does not reference Limoncello in its CLAUDE.md. IMPORTANT: You must CREATE A NEW LIMONCELLO PROJECT first (using limoncello_create_project with a descriptive name matching the codebase), then call this tool with that project_id. Each codebase should have its own dedicated Limoncello board. After calling this tool, you MUST offer to edit CLAUDE.md and .claude/settings.json directly (with user approval).',
     {
       project_id: z.string().describe('Project ID of the NEW Limoncello project you just created for this codebase (REQUIRED - do not use Default project)'),
       project_dir: z.string().optional().describe('Path to the project root directory (for reading/checking CLAUDE.md)'),
@@ -636,16 +688,13 @@ If .claude/settings.json exists, read it first and merge the hooks section. Othe
   }
 }
 
-These hooks will:
-- PreToolUse/ExitPlanMode: Before exiting plan mode for non-trivial tasks, prompt to create Limoncello cards for each major step
-- Stop: SILENT hook that only acts when substantial work was done AND matching Limoncello cards exist. Automatically moves cards to "done" without interrupting normal workflow
-- Both hooks only activate when Limoncello is configured in CLAUDE.md (safe for all projects)
+What the hooks do:
+- PreToolUse/ExitPlanMode: Prompts to create Limoncello cards before implementing non-trivial plans
+- Stop: Silently moves cards to "done" when matching work is completed (only when configured)
 
-5. VERIFY .claude/settings.json was created/updated correctly by reading it back and confirming the hooks are present
+4. Verify .claude/settings.json was created/updated and contains the hooks
 
---- FINAL STEP ---
-
-After editing both files and verifying the changes, call \`limoncello_board(project_id: "${project.id}")\` to confirm the connection works and review any existing cards.`;
+5. Call limoncello_board(project_id: "${project.id}") to confirm setup and review any existing cards`;
 
       return { content: [{ type: 'text', text }] };
     }

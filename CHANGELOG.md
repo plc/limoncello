@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- Shortened `limoncello_onboard` output to be more concise and professional -- removed excessive capitalization, repetition, and emphasis while keeping all critical information
+- Clarified .claude.json vs .claude/settings.json distinction in onboarding output -- added clear note explaining that .claude.json is Claude's state file (do not edit) and .claude/settings.json is the hooks configuration file (this is what you need)
+
 ### Documentation
 - Documented `POST /api/keys` rate limit (10 req/min/IP) in README.md, CLAUDE.md, and API manual to improve discoverability
 
