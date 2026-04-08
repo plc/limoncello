@@ -6,6 +6,12 @@
 - `limoncello_get` MCP tool -- fetch a single card by ID with full details including title, description, status, substatus, tags, and timestamps
 - Structured output option for `limoncello_board` -- new `format` parameter accepts "text" (default) or "json" for programmatic parsing
 - JSON format returns structured data with project info, columns array (with labels and card counts), and full card details with both raw keys and human-readable labels
+- Description field for projects -- optional text field to describe the purpose of a project, visible in project list, MCP tools, and web UI
+- Database migration automatically adds `description` column to existing projects tables (defaults to empty string)
+- `description` parameter added to `POST /api/projects` and `PATCH /api/projects/:id` endpoints
+- `description` parameter added to `limoncello_create_project` MCP tool (also supported in columns_file JSON)
+- Project description shown in `limoncello_projects` MCP tool output
+- Description textarea added to project modal in web UI
 
 ### Changed
 - `limoncello_move` status parameter is now optional -- allows updating just tags or substatus without changing the card's column
