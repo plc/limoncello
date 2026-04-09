@@ -22,24 +22,25 @@ Stack: Node.js + Express + SQLite (better-sqlite3), vanilla HTML/CSS/JS frontend
 ## Key Architecture
 
 - **Database**: SQLite at `./data/limoncello.db` -- created automatically on first run
-- **Schema-on-startup**: Tables (projects, cards) created via `CREATE TABLE IF NOT EXISTS` in `src/db.js`
-- **Projects table**: Each project has custom columns (stored as JSON array of {key, label, substatuses})
+- **Schema-on-startup**: Tables (api_keys, projects, cards) created via `CREATE TABLE IF NOT EXISTS` in `src/db.js`. `api_keys` is created first so the `projects.owner_key_id` foreign key can reference it.
+- **Projects table**: Each project has custom columns (JSON array of `{key, label, substatuses}`) and an `owner_key_id` column (nullable FK to `api_keys`) identifying the key that owns the project. `NULL` = admin-owned.
 - **Cards table**: Cards belong to projects via `project_id` foreign key
-- **Default project**: Created on first run for backward compatibility
+- **Project ownership**: Every project is owned by exactly one agent key (or NULL = admin-owned). Agent keys see and mutate only their own projects and the cards inside them; cross-tenant reads return 404 (existence is never leaked). The admin key bypasses all ownership checks. Shared helper lives in `src/lib/access.js` (`isAuthConfigured`, `canAccessProject`) and is used by both route modules.
+- **Default project**: Created on first run for backward compatibility. It is admin-owned and invisible to agent keys.
 - **Sub-statuses**: Columns can define optional sub-statuses. Cards have nullable `substatus` field, validated against column definition
 - **IDs**: nanoid with `crd_` prefix for cards, `prj_` prefix for projects, `key_` prefix for API keys (`src/lib/ids.js`)
 - **Port**: 3654
-- **Auth**: Three-tier: (1) admin key from `LIMONCELLO_API_KEY` env var -- full access including key management; (2) agent keys from `api_keys` table -- full project/card access, no key management; (3) open mode -- if no admin key and no agent keys exist, all routes are open (local dev)
-- **API keys**: `POST /api/keys` is unauthenticated and rate-limited to 10 requests/min/IP to prevent abuse. Keys use `lmn_` prefix + 48 chars. Only SHA-256 hash stored. Plaintext returned once at creation. `GET /api/keys` and `DELETE /api/keys/:id` are admin-only.
+- **Auth**: Three-tier: (1) admin key from `LIMONCELLO_API_KEY` env var -- full access including key management and every project; (2) agent keys from `api_keys` table -- full CRUD on projects they own, zero visibility into other projects, no key management; (3) open mode -- if no admin key and no agent keys exist, all routes are open (local dev)
+- **API keys**: `POST /api/keys` is unauthenticated and rate-limited to 10 requests/min/IP. Each bootstrap atomically creates the key, a private project owned by the key, and a welcome card (see `src/routes/keys.js`). The response includes `project_id` for the new private board. Keys use `lmn_` prefix + 48 chars. Only SHA-256 hash stored; plaintext returned once at creation. `GET /api/keys` and `DELETE /api/keys/:id` are admin-only.
 - **API**: REST at `/api/projects` and `/api/projects/:projectId/cards` (`src/routes/projects.js`, `src/routes/cards.js`)
-- **Backward compat**: `/api/cards` routes to Default project
+- **Backward compat**: `/api/cards` routes to the caller's first-owned project (or the first admin-owned project in open/admin mode)
 - **Homepage**: Static landing page at `/` (`src/public/index.html`) -- links to `/board` and `/api/man`
 - **Board**: Kanban UI at `/board` (`src/public/board.html`) -- served via explicit route and static middleware
 - **UI**: Vanilla HTML/CSS/JS served from `src/public/`, dynamic columns based on selected project
 - **MCP (STDIO)**: `src/mcp.mjs` -- STDIO transport entry point for local subprocess use
-- **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use
+- **MCP (HTTP)**: `/mcp` endpoint in `src/index.js` -- Streamable HTTP transport for remote use. Each MCP session uses the CALLER'S bearer token (not the admin key) so the caller's role and project ownership are preserved end-to-end through the MCP tool surface.
 - **MCP tools**: `src/mcp-tools.mjs` -- shared tool definitions used by both transports
-- **WebSocket**: `/ws` endpoint for real-time board updates (`src/ws.js`). Clients subscribe to a project; card mutations broadcast to all subscribers. Auth via `?token=` query param when `LIMONCELLO_API_KEY` is set.
+- **WebSocket**: `/ws` endpoint for real-time board updates (`src/ws.js`). Clients subscribe to a project; card mutations broadcast to all subscribers. Accepts both admin and agent keys via `?token=` query param. Agent keys may only subscribe to projects they own (otherwise the socket closes with code 1008 Forbidden).
 
 ## Project Structure
 
@@ -51,9 +52,11 @@ src/
   mcp.mjs             # MCP server entry point (STDIO transport)
   mcp-tools.mjs       # Shared MCP tool definitions (used by both transports)
   lib/ids.js          # Card, project, and key ID generation (crd_, prj_, key_ prefixes)
-  routes/projects.js  # Project CRUD API
-  routes/cards.js     # Card CRUD API (broadcasts via WebSocket on mutations)
-  routes/keys.js      # API key management (bootstrap, list, revoke)
+  lib/access.js       # Shared auth helpers: isAuthConfigured, canAccessProject
+  lib/welcome.js      # Welcome card title and description constants
+  routes/projects.js  # Project CRUD API (scoped by owner_key_id)
+  routes/cards.js     # Card CRUD API (ownership-gated, broadcasts via WebSocket)
+  routes/keys.js      # API key management (bootstrap atomically creates private project + welcome card)
   routes/man.js       # Self-describing API manual endpoint
   public/
     index.html        # Homepage (static, inline styles, no JS)

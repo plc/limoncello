@@ -35,15 +35,29 @@ const DEFAULT_COLUMNS = JSON.stringify([
  * Handles migration from v1 (no projects) to v2 (with projects).
  */
 function initSchema() {
-  // Create projects table
+  // Create api_keys table first: projects.owner_key_id references it.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id         TEXT PRIMARY KEY,
+      key_hash   TEXT NOT NULL UNIQUE,
+      name       TEXT DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_used  TEXT DEFAULT NULL,
+      revoked_at TEXT DEFAULT NULL
+    );
+  `);
+
+  // Create projects table. owner_key_id scopes a project to the agent key
+  // that created it; NULL means admin-owned (visible only to admin key).
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      columns     TEXT NOT NULL DEFAULT '${DEFAULT_COLUMNS.replace(/'/g, "''")}',
-      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id           TEXT PRIMARY KEY,
+      name         TEXT NOT NULL,
+      description  TEXT DEFAULT '',
+      columns      TEXT NOT NULL DEFAULT '${DEFAULT_COLUMNS.replace(/'/g, "''")}',
+      owner_key_id TEXT DEFAULT NULL REFERENCES api_keys(id),
+      created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
@@ -110,17 +124,19 @@ function initSchema() {
     console.log('Added description column to projects table');
   }
 
-  // Create api_keys table for agent bootstrapping
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id         TEXT PRIMARY KEY,
-      key_hash   TEXT NOT NULL UNIQUE,
-      name       TEXT DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_used  TEXT DEFAULT NULL,
-      revoked_at TEXT DEFAULT NULL
-    );
-  `);
+  // Migration: Add owner_key_id to projects table if it doesn't exist.
+  // Existing rows default to NULL (admin-owned) -- this is a deliberate
+  // security decision: pre-migration projects become invisible to any
+  // subsequently bootstrapped agent key. See CHANGELOG.md.
+  const projectsInfoForOwner = db.prepare("PRAGMA table_info(projects)").all();
+  const hasOwnerKeyId = projectsInfoForOwner.some(col => col.name === 'owner_key_id');
+  if (!hasOwnerKeyId && projectsInfoForOwner.length > 0) {
+    db.exec("ALTER TABLE projects ADD COLUMN owner_key_id TEXT DEFAULT NULL REFERENCES api_keys(id)");
+    console.log('Added owner_key_id column to projects table (existing rows default to admin-owned)');
+  }
+
+  // Index for fast ownership filtering
+  db.exec('CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_key_id)');
 }
 
 /**

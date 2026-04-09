@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Security (BREAKING)
+- **Per-key project ownership**: every project is now owned by the agent key that created it. Agent keys only see their own projects; cross-tenant reads return 404 so existence is never leaked. Fixes a vulnerability where any caller who bootstrapped an agent key via `POST /api/keys` got effective admin-level access to every project on the instance.
+- **MCP admin key leak fixed**: the `/mcp` HTTP endpoint now uses the caller's bearer token (not the server's `LIMONCELLO_API_KEY`) when instantiating per-session MCP servers. Previously, any authenticated caller -- including self-bootstrapped agent keys -- was silently elevated to admin privileges via the MCP tool surface.
+- **WebSocket auth hardened**: `/ws` now accepts both admin and agent keys. Agent keys may only subscribe to projects they own; attempts to subscribe to another key's project close the socket with code 1008 (policy violation).
+- **Migration**: a new `owner_key_id` column is added to `projects`. Existing rows are set to NULL, meaning they remain visible to the admin key only (legacy projects are not silently exposed to new agent keys). Breaking change for deployments that relied on agent keys having global visibility -- rotate the admin key and re-bootstrap agent keys after upgrading.
+- `POST /api/keys` now atomically creates a key + a private project + a welcome card in a single transaction. The response includes the new `project_id` so callers know exactly which board they can use. The private project uses `<name> Board` when a key name is provided, otherwise `My Board`.
+- The bootstrap response includes a `note` explaining the per-key private-board model.
+
 ### Added
 - `limoncello://guide` MCP resource -- comprehensive guide for agents on using Limoncello effectively, including essential workflows, best practices, common use cases, troubleshooting, and tools reference
 - Recent changes filter -- dropdown to show only the last N recently changed cards (3, 5, 10, or 20), sorted by updated_at timestamp for focusing on recent activity

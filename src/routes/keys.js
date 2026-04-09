@@ -8,8 +8,9 @@
 
 const crypto = require('node:crypto');
 const express = require('express');
-const { db } = require('../db');
-const { keyId } = require('../lib/ids');
+const { db, DEFAULT_COLUMNS } = require('../db');
+const { keyId, projectId, cardId } = require('../lib/ids');
+const { WELCOME_TITLE, WELCOME_DESCRIPTION } = require('../lib/welcome');
 
 const router = express.Router();
 
@@ -66,9 +67,12 @@ setInterval(() => {
 
 /**
  * POST /api/keys
- * Create a new agent API key. Unauthenticated but rate-limited.
+ * Create a new agent API key AND a private project owned by that key.
+ * Unauthenticated but rate-limited. Since the call is zero-auth, the issued
+ * key only sees the auto-created project (and any future projects the caller
+ * creates) -- it cannot see pre-existing admin-owned projects on the instance.
  * Body: { name?: string }
- * Returns: { id, key, name, setup }  (key shown once)
+ * Returns: { id, key, name, project_id, setup }  (key shown once)
  */
 router.post('/', rateLimit, (req, res) => {
   const { name = '' } = req.body || {};
@@ -77,21 +81,46 @@ router.post('/', rateLimit, (req, res) => {
     return res.status(400).json({ error: 'Name must be a string' });
   }
 
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
   const id = keyId();
   const plaintext = generateKeyPlaintext();
   const hash = hashKey(plaintext);
 
-  db.prepare(`
-    INSERT INTO api_keys (id, key_hash, name, created_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `).run(id, hash, typeof name === 'string' ? name.trim() : '');
+  // Create key + private project + welcome card atomically so a caller
+  // never ends up with a key that has no accessible project.
+  const bootstrap = db.transaction(() => {
+    db.prepare(`
+      INSERT INTO api_keys (id, key_hash, name, created_at)
+      VALUES (?, ?, ?, datetime('now'))
+    `).run(id, hash, trimmedName);
+
+    const pId = projectId();
+    const projectName = trimmedName ? `${trimmedName} Board` : 'My Board';
+    db.prepare(`
+      INSERT INTO projects (id, name, description, columns, owner_key_id, created_at, updated_at)
+      VALUES (?, ?, '', ?, ?, datetime('now'), datetime('now'))
+    `).run(pId, projectName, DEFAULT_COLUMNS, id);
+
+    // Welcome card in the first column (backlog)
+    const firstColumnKey = JSON.parse(DEFAULT_COLUMNS)[0].key;
+    db.prepare(`
+      INSERT INTO cards (id, project_id, title, description, status, position, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))
+    `).run(cardId(), pId, WELCOME_TITLE, WELCOME_DESCRIPTION, firstColumnKey);
+
+    return pId;
+  });
+
+  const projectIdValue = bootstrap();
 
   res.status(201).json({
     id,
     key: plaintext,
-    name: (typeof name === 'string' ? name.trim() : ''),
+    name: trimmedName,
+    project_id: projectIdValue,
     setup: {
       warning: 'Save this key now -- it cannot be retrieved later.',
+      note: 'This key has its own private board and cannot see projects owned by other keys.',
       mcp_command: `claude mcp add limoncello -s user --transport http --header "Authorization: Bearer ${plaintext}" -- https://limoncello.fly.dev/mcp`,
       env_var: `export LIMONCELLO_API_KEY=${plaintext}`,
       docs: 'https://limoncello.fly.dev/api/man'

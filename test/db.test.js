@@ -111,7 +111,7 @@ describe('Database schema', () => {
       const columns = db.prepare("PRAGMA table_info(projects)").all();
       const columnNames = columns.map(col => col.name);
 
-      const expectedColumns = ['id', 'name', 'columns', 'description', 'created_at', 'updated_at'];
+      const expectedColumns = ['id', 'name', 'columns', 'description', 'owner_key_id', 'created_at', 'updated_at'];
 
       for (const expected of expectedColumns) {
         assert.ok(

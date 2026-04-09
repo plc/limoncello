@@ -175,6 +175,102 @@ describe('Key Creation - POST /api/keys', () => {
 
     assert.equal(res.body.key.length, 4 + 48); // 'lmn_' + 48
   });
+
+  it('response includes project_id for the auto-created private project', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'Bootstrap Test' })
+      .expect(201);
+
+    assert.ok(res.body.project_id, 'Response should include project_id');
+    assert.ok(res.body.project_id.startsWith('prj_'), 'project_id should start with prj_');
+  });
+
+  it('auto-creates a project owned by the new key', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'Owner Test' })
+      .expect(201);
+
+    const keyId = res.body.id;
+    const projectId = res.body.project_id;
+
+    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    assert.ok(project, 'Project should exist in database');
+    assert.equal(project.owner_key_id, keyId, 'Project should be owned by the new key');
+  });
+
+  it('auto-created project uses key name as prefix when provided', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'My Agent' })
+      .expect(201);
+
+    const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(res.body.project_id);
+    assert.equal(project.name, 'My Agent Board');
+  });
+
+  it('auto-created project falls back to "My Board" when key name is empty', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: '' })
+      .expect(201);
+
+    const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(res.body.project_id);
+    assert.equal(project.name, 'My Board');
+  });
+
+  it('auto-created project has default columns', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'Columns Test' })
+      .expect(201);
+
+    const project = db.prepare('SELECT columns FROM projects WHERE id = ?').get(res.body.project_id);
+    const cols = JSON.parse(project.columns);
+    const keys = cols.map(c => c.key);
+    assert.deepEqual(keys, ['backlog', 'todo', 'in_progress', 'blocked', 'done']);
+  });
+
+  it('auto-creates a welcome card in the first column', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'Welcome Test' })
+      .expect(201);
+
+    const cards = db.prepare('SELECT * FROM cards WHERE project_id = ?').all(res.body.project_id);
+    assert.equal(cards.length, 1, 'Exactly one welcome card should exist');
+    assert.equal(cards[0].status, 'backlog');
+    assert.ok(cards[0].title.length > 0, 'Welcome card should have a title');
+    assert.ok(cards[0].description.length > 0, 'Welcome card should have a description');
+  });
+
+  it('bootstrap is atomic: key + project + welcome card created together', async () => {
+    const beforeKeys = db.prepare('SELECT COUNT(*) as n FROM api_keys').get().n;
+    const beforeProjects = db.prepare('SELECT COUNT(*) as n FROM projects').get().n;
+    const beforeCards = db.prepare('SELECT COUNT(*) as n FROM cards').get().n;
+
+    await request(app)
+      .post('/api/keys')
+      .send({ name: 'Atomic Test' })
+      .expect(201);
+
+    assert.equal(db.prepare('SELECT COUNT(*) as n FROM api_keys').get().n, beforeKeys + 1);
+    assert.equal(db.prepare('SELECT COUNT(*) as n FROM projects').get().n, beforeProjects + 1);
+    assert.equal(db.prepare('SELECT COUNT(*) as n FROM cards').get().n, beforeCards + 1);
+  });
+
+  it('bootstrap response includes setup notes and mcp command', async () => {
+    const res = await request(app)
+      .post('/api/keys')
+      .send({ name: 'Setup Test' })
+      .expect(201);
+
+    assert.ok(res.body.setup, 'Response should include setup section');
+    assert.ok(res.body.setup.warning, 'Setup should have a warning');
+    assert.ok(res.body.setup.note, 'Setup should have a note about private boards');
+    assert.ok(res.body.setup.mcp_command.includes(res.body.key), 'MCP command should include the plaintext key');
+  });
 });
 
 describe('Key Listing - GET /api/keys', () => {

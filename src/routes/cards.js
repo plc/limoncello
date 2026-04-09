@@ -12,6 +12,7 @@ const express = require('express');
 const { db } = require('../db');
 const { cardId } = require('../lib/ids');
 const { broadcast } = require('../ws');
+const { canAccessProject } = require('../lib/access');
 
 const router = express.Router({ mergeParams: true });
 
@@ -72,10 +73,17 @@ function getNextPosition(projectId, status) {
 }
 
 /**
- * Middleware: validate projectId exists and attach columns to req
+ * Middleware: validate projectId exists AND caller has access, then attach
+ * columns to req. Access denial returns 404 (not 403) so existence is hidden.
  */
 function validateProject(req, res, next) {
   const projectId = resolveProjectId(req);
+  if (!projectId) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
+  if (!canAccessProject(req, projectId)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
   const columns = getProjectColumns(projectId);
   if (!columns) {
     return res.status(404).json({ error: 'Project not found' });

@@ -7,6 +7,8 @@
 const express = require('express');
 const { db, DEFAULT_COLUMNS } = require('../db');
 const { projectId, cardId } = require('../lib/ids');
+const { isAuthConfigured, canAccessProject } = require('../lib/access');
+const { WELCOME_TITLE, WELCOME_DESCRIPTION } = require('../lib/welcome');
 
 const router = express.Router();
 
@@ -54,10 +56,19 @@ function validateSubstatuses(columns) {
 
 /**
  * GET /api/projects
- * List all projects.
+ * List projects visible to the caller.
+ * - Admin / open mode: every project.
+ * - Agent key: only projects owned by that key.
  */
 router.get('/', (req, res) => {
-  const projects = db.prepare('SELECT * FROM projects ORDER BY created_at').all();
+  let projects;
+  if (!isAuthConfigured() || req.authRole === 'admin') {
+    projects = db.prepare('SELECT * FROM projects ORDER BY created_at').all();
+  } else {
+    projects = db.prepare(
+      'SELECT * FROM projects WHERE owner_key_id = ? ORDER BY created_at'
+    ).all(req.agentKeyId);
+  }
   res.json(projects.map(p => ({ ...p, columns: JSON.parse(p.columns) })));
 });
 
@@ -108,44 +119,24 @@ router.post('/', (req, res) => {
   const columnsJson = normalizedColumns ? JSON.stringify(normalizedColumns) : DEFAULT_COLUMNS;
   const desc = description !== undefined ? description.trim() : '';
 
+  // Stamp ownership: agent-created projects belong to that agent key,
+  // admin/open-mode projects are NULL (visible only to admin).
+  const ownerKeyId = (req.authRole === 'agent') ? req.agentKeyId : null;
+
   db.prepare(`
-    INSERT INTO projects (id, name, description, columns, created_at, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).run(id, name.trim(), desc, columnsJson);
+    INSERT INTO projects (id, name, description, columns, owner_key_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).run(id, name.trim(), desc, columnsJson, ownerKeyId);
 
   // Create a welcome card in the first column
   const parsedColumns = JSON.parse(columnsJson);
   const firstColumnKey = parsedColumns[0].key;
   const welcomeCardId = cardId();
-  const welcomeTitle = 'Welcome to Limoncello!';
-  const welcomeDescription = `This is your Limoncello board. Here's how to get started:
-
-**For Humans (Web UI):**
-- Click the + button in any column to add a new card
-- Drag cards between columns to update their status
-- Click a card to edit its title, description, or tags
-- Use tags to categorize and filter your work
-
-**For AI Agents (MCP):**
-Agents can interact with this board via the Limoncello MCP server. Common operations:
-- \`limoncello_add\` -- create a new card
-- \`limoncello_list\` -- list cards (filter by status or tag)
-- \`limoncello_move\` -- update card status or tags
-- \`limoncello_board\` -- view board summary
-- \`limoncello_changes\` -- poll for changes since a timestamp
-
-**Tips:**
-- Move cards to "In Progress" when you start work
-- Use "Blocked" status when waiting for input or dependencies
-- Mark cards as "Done" when complete
-- Add new cards whenever you discover work that needs tracking
-
-You can delete this card once you're comfortable with the basics.`;
 
   db.prepare(`
     INSERT INTO cards (id, project_id, title, description, status, position, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))
-  `).run(welcomeCardId, id, welcomeTitle, welcomeDescription, firstColumnKey);
+  `).run(welcomeCardId, id, WELCOME_TITLE, WELCOME_DESCRIPTION, firstColumnKey);
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json({ ...project, columns: JSON.parse(project.columns) });
@@ -153,9 +144,13 @@ You can delete this card once you're comfortable with the basics.`;
 
 /**
  * GET /api/projects/:id
- * Get a single project.
+ * Get a single project. Returns 404 (not 403) when the caller cannot access
+ * the project, so existence is not leaked to unauthorized agent keys.
  */
 router.get('/:id', (req, res) => {
+  if (!canAccessProject(req, req.params.id)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
   if (!project) {
     return res.status(404).json({ error: 'Project not found' });
@@ -171,6 +166,10 @@ router.get('/:id', (req, res) => {
 router.patch('/:id', (req, res) => {
   const { id } = req.params;
   const { name, description, columns } = req.body;
+
+  if (!canAccessProject(req, id)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   if (!project) {
@@ -288,6 +287,10 @@ router.patch('/:id', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
+
+  if (!canAccessProject(req, id)) {
+    return res.status(404).json({ error: 'Project not found' });
+  }
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   if (!project) {

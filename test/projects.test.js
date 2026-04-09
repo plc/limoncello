@@ -861,3 +861,216 @@ describe('Projects API', () => {
     });
   });
 });
+
+/**
+ * Per-key ownership tests.
+ *
+ * Verifies the security model: agent keys can only see / mutate projects they
+ * own. Cross-tenant access returns 404 so existence is not leaked.
+ */
+describe('Projects API - Per-key ownership', () => {
+  const express = require('express');
+  const projectsRouter = require('../src/routes/projects');
+  const cardsRouter = require('../src/routes/cards');
+  const keysRouter = require('../src/routes/keys');
+  const { hashKey, rateLimitStore } = require('../src/routes/keys');
+
+  /**
+   * Build an Express app with the same auth middleware shape as src/index.js,
+   * so the real route modules exercise their canAccessProject() checks.
+   */
+  function createOwnershipApp() {
+    const app = express();
+    app.use(express.json());
+
+    function authenticate(req) {
+      const auth = req.headers.authorization;
+      if (!auth || !auth.startsWith('Bearer ')) return false;
+      const token = auth.slice(7);
+      if (!token) return false;
+      const row = db.prepare(
+        'SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL'
+      ).get(hashKey(token));
+      if (row) {
+        req.authRole = 'agent';
+        req.agentKeyId = row.id;
+        return true;
+      }
+      return false;
+    }
+
+    function requireAuth(req, res, next) {
+      if (authenticate(req)) return next();
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Key bootstrap (unauthenticated)
+    app.use('/api/keys', keysRouter);
+
+    // Everything else requires auth (agent keys exist in DB -> isAuthConfigured() is true)
+    app.use('/api/projects', requireAuth, projectsRouter);
+    app.use('/api/projects/:projectId/cards', requireAuth, cardsRouter);
+
+    return app;
+  }
+
+  let app;
+  let keyA, keyAId, projectA;
+  let keyB, keyBId, projectB;
+
+  beforeEach(async () => {
+    resetDb();
+    db.exec('DELETE FROM api_keys');
+    rateLimitStore.clear();
+    app = createOwnershipApp();
+
+    // Bootstrap two agent keys; each gets its own private project.
+    const resA = await request(app).post('/api/keys').send({ name: 'Alice' }).expect(201);
+    keyA = resA.body.key;
+    keyAId = resA.body.id;
+    projectA = resA.body.project_id;
+
+    const resB = await request(app).post('/api/keys').send({ name: 'Bob' }).expect(201);
+    keyB = resB.body.key;
+    keyBId = resB.body.id;
+    projectB = resB.body.project_id;
+  });
+
+  describe('GET /api/projects (scoped listing)', () => {
+    it('agent key A sees only A\'s projects', async () => {
+      const res = await request(app)
+        .get('/api/projects')
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(200);
+
+      // Default project is admin-owned (owner_key_id NULL) so A should NOT see it.
+      const ids = res.body.map(p => p.id);
+      assert.ok(ids.includes(projectA), 'A should see A\'s project');
+      assert.ok(!ids.includes(projectB), 'A should not see B\'s project');
+    });
+
+    it('agent key B sees only B\'s projects', async () => {
+      const res = await request(app)
+        .get('/api/projects')
+        .set('Authorization', `Bearer ${keyB}`)
+        .expect(200);
+
+      const ids = res.body.map(p => p.id);
+      assert.ok(ids.includes(projectB));
+      assert.ok(!ids.includes(projectA));
+    });
+
+    it('agent keys do not see admin-owned (legacy) projects', async () => {
+      const res = await request(app)
+        .get('/api/projects')
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(200);
+
+      // The Default project from resetDb has owner_key_id = NULL
+      const ids = res.body.map(p => p.id);
+      const defaultId = db.prepare("SELECT id FROM projects WHERE name = 'Default'").get().id;
+      assert.ok(!ids.includes(defaultId), 'A should not see admin-owned Default project');
+    });
+  });
+
+  describe('GET /api/projects/:id (cross-tenant 404)', () => {
+    it('returns 404 when A tries to fetch B\'s project', async () => {
+      await request(app)
+        .get(`/api/projects/${projectB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+
+    it('returns 404 for admin-owned project when agent tries to fetch it', async () => {
+      const defaultId = db.prepare("SELECT id FROM projects WHERE name = 'Default'").get().id;
+      await request(app)
+        .get(`/api/projects/${defaultId}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+
+    it('returns 200 when agent fetches its own project', async () => {
+      const res = await request(app)
+        .get(`/api/projects/${projectA}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(200);
+      assert.equal(res.body.id, projectA);
+    });
+  });
+
+  describe('PATCH /api/projects/:id (cross-tenant 404)', () => {
+    it('cannot patch another key\'s project', async () => {
+      await request(app)
+        .patch(`/api/projects/${projectB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ name: 'Hijacked' })
+        .expect(404);
+
+      // Verify B's project was NOT modified
+      const row = db.prepare('SELECT name FROM projects WHERE id = ?').get(projectB);
+      assert.notEqual(row.name, 'Hijacked');
+    });
+
+    it('can patch own project', async () => {
+      const res = await request(app)
+        .patch(`/api/projects/${projectA}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ name: 'Renamed By Owner' })
+        .expect(200);
+      assert.equal(res.body.name, 'Renamed By Owner');
+    });
+  });
+
+  describe('DELETE /api/projects/:id (cross-tenant 404)', () => {
+    it('cannot delete another key\'s project', async () => {
+      await request(app)
+        .delete(`/api/projects/${projectB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+
+      // Verify B's project still exists
+      const row = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectB);
+      assert.ok(row, 'B\'s project should still exist');
+    });
+  });
+
+  describe('POST /api/projects (ownership stamping)', () => {
+    it('new project is stamped with creator\'s key id', async () => {
+      const res = await request(app)
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ name: 'Another A Project' })
+        .expect(201);
+
+      const row = db.prepare('SELECT owner_key_id FROM projects WHERE id = ?').get(res.body.id);
+      assert.equal(row.owner_key_id, keyAId, 'New project should be owned by the creating key');
+    });
+
+    it('other keys cannot see the newly created project', async () => {
+      const createRes = await request(app)
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ name: 'Private To A' })
+        .expect(201);
+
+      await request(app)
+        .get(`/api/projects/${createRes.body.id}`)
+        .set('Authorization', `Bearer ${keyB}`)
+        .expect(404);
+    });
+  });
+
+  describe('Unauthenticated access', () => {
+    it('GET /api/projects returns 401 without auth', async () => {
+      await request(app)
+        .get('/api/projects')
+        .expect(401);
+    });
+
+    it('GET /api/projects/:id returns 401 without auth', async () => {
+      await request(app)
+        .get(`/api/projects/${projectA}`)
+        .expect(401);
+    });
+  });
+});

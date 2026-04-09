@@ -22,6 +22,7 @@ const express = require('express');
 const helmet = require('helmet');
 const { setup: setupWebSocket } = require('./ws');
 const { db, initSchema } = require('./db');
+const { isAuthConfigured } = require('./lib/access');
 const projectsRouter = require('./routes/projects');
 const cardsRouter = require('./routes/cards');
 const keysRouter = require('./routes/keys');
@@ -52,16 +53,6 @@ const adminKey = process.env.LIMONCELLO_API_KEY;
 if (adminKey && /^(sk|pk|rk)_(live|test)_/i.test(adminKey)) {
   console.error('LIMONCELLO_API_KEY looks like a Stripe key. Use a dedicated key for Limoncello, not a third-party credential.');
   process.exit(1);
-}
-
-/**
- * Check if any auth is configured (admin key or agent keys in DB).
- * When no auth is configured at all, all routes are open (local dev mode).
- */
-function isAuthConfigured() {
-  if (adminKey) return true;
-  const row = db.prepare('SELECT COUNT(*) as count FROM api_keys WHERE revoked_at IS NULL').get();
-  return row.count > 0;
 }
 
 /**
@@ -142,9 +133,19 @@ app.use('/api/projects', requireAuth, projectsRouter);
 // Card API -- project-scoped
 app.use('/api/projects/:projectId/cards', requireAuth, cardsRouter);
 
-// Backward-compat shim: /api/cards routes to the first (Default) project
+// Backward-compat shim: /api/cards routes to the caller's first project.
+// For admin / open mode this is the first project by created_at (usually Default).
+// For agent keys this is the first project owned by the calling key, so each
+// agent gets a stable "my default board" without being able to see others'.
 app.use('/api/cards', requireAuth, (req, res, next) => {
-  const defaultProject = db.prepare('SELECT id FROM projects ORDER BY created_at LIMIT 1').get();
+  let defaultProject;
+  if (!isAuthConfigured() || req.authRole === 'admin') {
+    defaultProject = db.prepare('SELECT id FROM projects ORDER BY created_at LIMIT 1').get();
+  } else {
+    defaultProject = db.prepare(
+      'SELECT id FROM projects WHERE owner_key_id = ? ORDER BY created_at LIMIT 1'
+    ).get(req.agentKeyId);
+  }
   if (!defaultProject) {
     return res.status(404).json({ error: 'No projects exist' });
   }
@@ -258,7 +259,18 @@ async function start() {
 
       // Use PUBLIC_URL env var for deployed environments, localhost for dev
       const mcpBaseUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
-      const server = createLimoncelloMcpServer(mcpBaseUrl, adminKey || '');
+
+      // SECURITY: Use the caller's bearer token (not the admin key) for this
+      // MCP session. The MCP server's api() helper forwards this token on every
+      // internal REST call, so the caller's role/ownership is preserved end-to-end.
+      // Previously this passed adminKey, which silently elevated any authenticated
+      // caller (including self-bootstrapped agent keys) to admin via the MCP tool
+      // surface. requireAuth has already validated the header by the time we get
+      // here, so the token is either the admin key, a valid agent key, or empty
+      // (open mode).
+      const auth = req.headers.authorization || '';
+      const callerToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const server = createLimoncelloMcpServer(mcpBaseUrl, callerToken);
       await server.connect(transport);
 
       await transport.handleRequest(req, res, req.body);
@@ -284,7 +296,7 @@ async function start() {
   });
 
   const server = http.createServer(app);
-  setupWebSocket(server, adminKey);
+  setupWebSocket(server, { adminKey, db, hashKey, isAuthConfigured });
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`Limoncello running on http://localhost:${port}`);

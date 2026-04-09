@@ -130,16 +130,23 @@
   -H "Content-Type: application/json" \
   -d '{"name": "my-agent"}'</code></pre>
       <p>
-        You'll get back a key (shown once). Use it to connect your agent via MCP:
+        The response includes a <code>key</code> (shown once) and a
+        <code>project_id</code> for a private board created for that key.
+        Each key sees only its own boards -- keys cannot read or modify
+        projects owned by other keys.
       </p>
+      <p>Connect your agent via MCP using the key:</p>
 <pre><code>claude mcp add limoncello -s user --transport http \
   --header "Authorization: Bearer &lt;your-key&gt;" \
   -- https://limoncello.fly.dev/mcp</code></pre>
-      <p>Then create a project and start tracking work:</p>
+      <p>
+        Your key already owns a private board, so you can start adding cards
+        immediately. To create additional boards:
+      </p>
 <pre><code>curl https://limoncello.fly.dev/api/projects \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer &lt;your-key&gt;" \
-  -d '{"name": "My Project"}'</code></pre>
+  -d '{"name": "Another Board"}'</code></pre>
       <p>
         Full API docs at <a href="/api/man"><code>GET /api/man</code></a>
         -- every endpoint, schema, and MCP tool in one JSON response.

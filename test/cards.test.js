@@ -1276,3 +1276,185 @@ describe('Cards API', () => {
     });
   });
 });
+
+/**
+ * Per-key ownership tests for the cards routes.
+ *
+ * Verifies agent key A cannot read, create, update, delete, or reorder cards
+ * in a project owned by agent key B. Cross-tenant access returns 404.
+ */
+describe('Cards API - Per-key ownership', () => {
+  const express = require('express');
+  const projectsRouter = require('../src/routes/projects');
+  const cardsRouter = require('../src/routes/cards');
+  const keysRouter = require('../src/routes/keys');
+  const { hashKey, rateLimitStore } = require('../src/routes/keys');
+
+  function createOwnershipApp() {
+    const app = express();
+    app.use(express.json());
+
+    function authenticate(req) {
+      const auth = req.headers.authorization;
+      if (!auth || !auth.startsWith('Bearer ')) return false;
+      const token = auth.slice(7);
+      if (!token) return false;
+      const row = db.prepare(
+        'SELECT id FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL'
+      ).get(hashKey(token));
+      if (row) {
+        req.authRole = 'agent';
+        req.agentKeyId = row.id;
+        return true;
+      }
+      return false;
+    }
+
+    function requireAuth(req, res, next) {
+      if (authenticate(req)) return next();
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    app.use('/api/keys', keysRouter);
+    app.use('/api/projects', requireAuth, projectsRouter);
+    app.use('/api/projects/:projectId/cards', requireAuth, cardsRouter);
+
+    return app;
+  }
+
+  let app;
+  let keyA, projectA, cardA;
+  let keyB, projectB, cardB;
+
+  beforeEach(async () => {
+    resetDb();
+    db.exec('DELETE FROM api_keys');
+    rateLimitStore.clear();
+    app = createOwnershipApp();
+
+    // Bootstrap two keys, each with a private project + welcome card.
+    const resA = await request(app).post('/api/keys').send({ name: 'Alice' }).expect(201);
+    keyA = resA.body.key;
+    projectA = resA.body.project_id;
+
+    const resB = await request(app).post('/api/keys').send({ name: 'Bob' }).expect(201);
+    keyB = resB.body.key;
+    projectB = resB.body.project_id;
+
+    // Create one additional card in each project for more thorough tests
+    const cA = await request(app)
+      .post(`/api/projects/${projectA}/cards`)
+      .set('Authorization', `Bearer ${keyA}`)
+      .send({ title: 'A task', status: 'todo' })
+      .expect(201);
+    cardA = cA.body.id;
+
+    const cB = await request(app)
+      .post(`/api/projects/${projectB}/cards`)
+      .set('Authorization', `Bearer ${keyB}`)
+      .send({ title: 'B task', status: 'todo' })
+      .expect(201);
+    cardB = cB.body.id;
+  });
+
+  describe('GET /api/projects/:id/cards (cross-tenant 404)', () => {
+    it('A cannot list B\'s cards', async () => {
+      await request(app)
+        .get(`/api/projects/${projectB}/cards`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+
+    it('A can list its own cards', async () => {
+      const res = await request(app)
+        .get(`/api/projects/${projectA}/cards`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(200);
+      // Welcome card (backlog) + the "A task" we added (todo) = 2
+      assert.equal(res.body.length, 2);
+    });
+  });
+
+  describe('GET /api/projects/:id/cards/:cardId (cross-tenant 404)', () => {
+    it('A cannot read a specific card in B\'s project', async () => {
+      await request(app)
+        .get(`/api/projects/${projectB}/cards/${cardB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+  });
+
+  describe('POST /api/projects/:id/cards (cross-tenant 404)', () => {
+    it('A cannot create a card in B\'s project', async () => {
+      await request(app)
+        .post(`/api/projects/${projectB}/cards`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ title: 'Malicious insert' })
+        .expect(404);
+
+      // Verify B's project did not receive the card
+      const row = db.prepare(
+        "SELECT COUNT(*) as n FROM cards WHERE project_id = ? AND title = 'Malicious insert'"
+      ).get(projectB);
+      assert.equal(row.n, 0);
+    });
+  });
+
+  describe('PATCH /api/projects/:id/cards/:cardId (cross-tenant 404)', () => {
+    it('A cannot update a card in B\'s project', async () => {
+      await request(app)
+        .patch(`/api/projects/${projectB}/cards/${cardB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ title: 'Hijacked' })
+        .expect(404);
+
+      const row = db.prepare('SELECT title FROM cards WHERE id = ?').get(cardB);
+      assert.notEqual(row.title, 'Hijacked');
+    });
+  });
+
+  describe('DELETE /api/projects/:id/cards/:cardId (cross-tenant 404)', () => {
+    it('A cannot delete a card in B\'s project', async () => {
+      await request(app)
+        .delete(`/api/projects/${projectB}/cards/${cardB}`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+
+      const row = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardB);
+      assert.ok(row, 'Card should still exist');
+    });
+  });
+
+  describe('PATCH /api/projects/:id/cards/reorder (cross-tenant 404)', () => {
+    it('A cannot reorder cards in B\'s project', async () => {
+      await request(app)
+        .patch(`/api/projects/${projectB}/cards/reorder`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .send({ cards: [{ id: cardB, position: 999 }] })
+        .expect(404);
+
+      // B's card position should not have changed
+      const row = db.prepare('SELECT position FROM cards WHERE id = ?').get(cardB);
+      assert.notEqual(row.position, 999);
+    });
+  });
+
+  describe('GET /api/projects/:id/cards/changes (cross-tenant 404)', () => {
+    it('A cannot see B\'s changes feed', async () => {
+      await request(app)
+        .get(`/api/projects/${projectB}/cards/changes?since=2020-01-01T00:00:00.000Z`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+  });
+
+  describe('Admin-owned (legacy) projects', () => {
+    it('agent cannot access cards in an admin-owned project', async () => {
+      const defaultId = db.prepare("SELECT id FROM projects WHERE name = 'Default'").get().id;
+      await request(app)
+        .get(`/api/projects/${defaultId}/cards`)
+        .set('Authorization', `Bearer ${keyA}`)
+        .expect(404);
+    });
+  });
+});

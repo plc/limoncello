@@ -20,12 +20,12 @@ const manual = {
       {
         type: 'admin',
         source: 'LIMONCELLO_API_KEY env var',
-        capabilities: 'Full access including key management',
+        capabilities: 'Full access to every project and card, plus key management. Bypasses all ownership checks.',
       },
       {
         type: 'agent',
         source: 'Database-backed agent keys (lmn_ prefix)',
-        capabilities: 'Full access to projects/cards, cannot manage other keys',
+        capabilities: 'Full CRUD on projects the key owns and the cards inside them. Cannot see other keys\' projects at all (cross-tenant reads return 404). Cannot manage other keys.',
       },
       {
         type: 'none',
@@ -54,19 +54,22 @@ const manual = {
 
   concepts: {
     terminology: 'IMPORTANT: In Limoncello, a "project" is a board with custom columns (like separate Trello boards). Cards are individual tasks that belong to a project/board. This naming can be confusing when working on software projects, but each software codebase typically gets its own dedicated Limoncello project/board.',
-    projects: 'A project is a board with its own set of columns. Every card belongs to a project. A Default project is created on first run.',
-    cards: 'A card is a task or item on the board. It has a title, optional description, status (column), optional substatus, optional tags, and a position within its column.',
+    projects: 'A project is a board with its own set of columns. Every card belongs to a project. A Default project is created on first run and is owned by the admin (invisible to agent keys).',
+    ownership: 'Every project has an owner_key_id. Agent keys see and mutate ONLY the projects they own (and the cards inside them); cross-tenant reads return 404 so existence is never leaked. The admin key bypasses all ownership checks. When an agent key calls POST /api/keys or POST /api/projects, the new project is automatically stamped with that key\'s id as owner.',
+    cards: 'A card is a task or item on the board. It has a title, optional description, status (column), optional substatus, optional tags, and a position within its column. Every card inherits its parent project\'s ownership.',
     columns: 'Each project defines an ordered list of columns (statuses). Default columns: backlog, todo, in_progress, blocked, done. Column keys are lowercase with underscores.',
     substatuses: 'Columns can define optional sub-statuses. For example, the "blocked" column has sub-statuses "human_review" and "agent_review". A card\'s substatus auto-clears when it moves to a different column.',
     tags: 'Cards can have an array of string tags for categorization and filtering. Tags are stored as JSON and can be filtered via query parameters.',
     ids: 'Projects use "prj_" prefix, cards use "crd_" prefix, both followed by a nanoid string. Example: crd_XhslNkie9dum, prj_vDi0hGAhCrUP.',
-    api_keys: 'Agent-provisioned API keys for authentication. Keys use the lmn_ prefix and are stored as SHA-256 hashes. Agents can self-provision keys via POST /api/keys (unauthenticated, rate-limited). Admin can list and revoke keys.',
+    api_keys: 'Agent-provisioned API keys for authentication. Keys use the lmn_ prefix and are stored as SHA-256 hashes. POST /api/keys atomically creates a key + a private project owned by that key + a welcome card; the response includes the new project_id. Admin can list and revoke keys.',
   },
 
   schemas: {
     project: {
       id: { type: 'string', example: 'prj_abc123', description: 'Unique project ID (prj_ prefix)' },
       name: { type: 'string', example: 'My Project', description: 'Project display name' },
+      description: { type: 'string', example: 'Tracking work for myproject', description: 'Optional human-readable description' },
+      owner_key_id: { type: 'string|null', example: 'key_abc123', description: 'ID of the agent key that owns this project. NULL means admin-owned.' },
       columns: {
         type: 'array',
         description: 'Ordered list of column definitions',
@@ -126,13 +129,13 @@ const manual = {
     {
       method: 'POST',
       path: '/api/keys',
-      summary: 'Create a new agent API key (unauthenticated, rate-limited to 10 requests/min/IP to prevent abuse)',
+      summary: 'Atomically create a new agent API key, a private project owned by that key, and a welcome card. Unauthenticated, rate-limited to 10 requests/min/IP.',
       auth: false,
       rate_limit: '10 requests per minute per IP address',
       body: {
-        name: { type: 'string', required: false, description: 'Optional label for the key' },
+        name: { type: 'string', required: false, description: 'Optional label for the key; also used as prefix for the auto-created project name' },
       },
-      response: '{ id: "key_...", key: "lmn_...", name: "...", setup: {...} } (201). Key is shown once. Rate limit returns 429 when exceeded.',
+      response: '{ id: "key_...", key: "lmn_...", name: "...", project_id: "prj_...", setup: {...} } (201). Key is shown once. project_id points at the new private board owned by the key -- agent keys cannot see pre-existing admin-owned projects.',
     },
     {
       method: 'GET',
