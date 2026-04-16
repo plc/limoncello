@@ -1134,7 +1134,12 @@ function handleWsMessage(msg) {
     case 'cards_reordered':
       for (const update of msg.cards) {
         const card = cards.find(c => c.id === update.id);
-        if (card) card.position = update.position;
+        if (!card) continue;
+        card.position = update.position;
+        if (update.status !== undefined && update.status !== card.status) {
+          card.status = update.status;
+          card.substatus = null;
+        }
       }
       renderBoard();
       break;

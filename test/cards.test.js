@@ -754,6 +754,61 @@ describe('Cards API', () => {
       assert.equal(res.body.updated, 0);
     });
 
+    it('moves card to a different column when status is provided', async () => {
+      await request(app)
+        .patch(`/api/projects/${projectId}/cards/reorder`)
+        .send({
+          cards: [
+            { id: card1.id, position: 0, status: 'in_progress' }
+          ]
+        })
+        .expect(200);
+
+      const verifyRes = await request(app)
+        .get(`/api/projects/${projectId}/cards/${card1.id}`)
+        .expect(200);
+
+      assert.equal(verifyRes.body.status, 'in_progress');
+      assert.equal(verifyRes.body.position, 0);
+    });
+
+    it('clears substatus when reorder moves card to a different column', async () => {
+      // Put card1 in blocked with a substatus, then reorder to in_progress
+      await request(app)
+        .patch(`/api/projects/${projectId}/cards/${card1.id}`)
+        .send({ status: 'blocked', substatus: 'human_review' })
+        .expect(200);
+
+      await request(app)
+        .patch(`/api/projects/${projectId}/cards/reorder`)
+        .send({
+          cards: [
+            { id: card1.id, position: 0, status: 'in_progress' }
+          ]
+        })
+        .expect(200);
+
+      const verifyRes = await request(app)
+        .get(`/api/projects/${projectId}/cards/${card1.id}`)
+        .expect(200);
+
+      assert.equal(verifyRes.body.status, 'in_progress');
+      assert.equal(verifyRes.body.substatus, null);
+    });
+
+    it('rejects invalid status in reorder payload', async () => {
+      const res = await request(app)
+        .patch(`/api/projects/${projectId}/cards/reorder`)
+        .send({
+          cards: [
+            { id: card1.id, position: 0, status: 'bogus_column' }
+          ]
+        })
+        .expect(400);
+
+      assert.match(res.body.error, /Invalid status/);
+    });
+
     it('only reorders cards in specified project', async () => {
       // Create another project with a card
       const project2Res = await request(app)

@@ -249,13 +249,30 @@ router.patch('/reorder', (req, res) => {
     return res.status(400).json({ error: 'Body must contain a "cards" array' });
   }
 
-  const updateStmt = db.prepare("UPDATE cards SET position = ?, updated_at = datetime('now') WHERE id = ? AND project_id = ?");
+  // Validate status values up front so we fail before opening a transaction
+  for (const { status } of cards) {
+    if (status !== undefined && !req.validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status "${status}". Must be one of: ${req.validStatuses.join(', ')}` });
+    }
+  }
+
+  const getCardStmt = db.prepare('SELECT status FROM cards WHERE id = ? AND project_id = ?');
+  const updatePositionStmt = db.prepare("UPDATE cards SET position = ?, updated_at = datetime('now') WHERE id = ? AND project_id = ?");
+  const updatePositionAndStatusStmt = db.prepare("UPDATE cards SET position = ?, status = ?, substatus = NULL, updated_at = datetime('now') WHERE id = ? AND project_id = ?");
+
   const updateMany = db.transaction((cardUpdates) => {
-    for (const { id, position } of cardUpdates) {
+    for (const { id, position, status } of cardUpdates) {
       if (!id || typeof position !== 'number') {
         throw new Error('Each card must have id and position');
       }
-      updateStmt.run(position, id, req.projectId);
+      if (status !== undefined) {
+        const existing = getCardStmt.get(id, req.projectId);
+        if (existing && existing.status !== status) {
+          updatePositionAndStatusStmt.run(position, status, id, req.projectId);
+          continue;
+        }
+      }
+      updatePositionStmt.run(position, id, req.projectId);
     }
   });
 

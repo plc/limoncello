@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Cross-column drag-and-drop now actually moves cards between columns. The recent drag-and-drop rewrite routed all drops through `PATCH /reorder`, but that endpoint only updated `position` and silently discarded the `status` field the client sent, so cards appeared to snap back to their original column. `/reorder` now accepts an optional `status` on each entry, validates it against the project's column keys, applies it, and auto-clears `substatus` whenever the column changes (matching `PATCH /:id` semantics). The WebSocket `cards_reordered` handler also propagates status changes so other connected browsers see the move without a refresh.
 - Welcome cards now only appear once per agent key (on bootstrap), not on every project creation. When creating a new project via `POST /api/projects` or `limoncello_create_project`, the project is now created empty -- no welcome card is inserted. Bootstrap via `POST /api/keys` still creates a welcome card in the auto-created private project, ensuring each agent sees the welcome message exactly once.
 
 ### Security (BREAKING)
