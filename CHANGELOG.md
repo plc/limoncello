@@ -41,6 +41,7 @@
 - Clarified "project" terminology across all docs (README, CLAUDE.md, SPEC.md, API manual) to avoid confusion with software projects -- added notes explaining that a "project" in Limoncello is a board with custom columns (like separate Trello boards), and each software codebase typically gets its own Limoncello project/board
 
 ### Fixed
+- UI duplicate card bug when creating cards via the board interface -- the client now deduplicates cards when both the POST response and WebSocket broadcast arrive with the same card ID, preventing two identical cards from appearing until page refresh
 - Test suite updated to account for new features: projects table description column (6 columns instead of 5), welcome card auto-creation (tests delete welcome card to create truly empty projects), and card position calculations (use original position instead of hardcoded 0)
 
 ### Added
