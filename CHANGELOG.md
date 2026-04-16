@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Welcome cards now only appear once per agent key (on bootstrap), not on every project creation. When creating a new project via `POST /api/projects` or `limoncello_create_project`, the project is now created empty -- no welcome card is inserted. Bootstrap via `POST /api/keys` still creates a welcome card in the auto-created private project, ensuring each agent sees the welcome message exactly once.
+
 ### Security (BREAKING)
 - **Per-key project ownership**: every project is now owned by the agent key that created it. Agent keys only see their own projects; cross-tenant reads return 404 so existence is never leaked. Fixes a vulnerability where any caller who bootstrapped an agent key via `POST /api/keys` got effective admin-level access to every project on the instance.
 - **MCP admin key leak fixed**: the `/mcp` HTTP endpoint now uses the caller's bearer token (not the server's `LIMONCELLO_API_KEY`) when instantiating per-session MCP servers. Previously, any authenticated caller -- including self-bootstrapped agent keys -- was silently elevated to admin privileges via the MCP tool surface.
