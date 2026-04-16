@@ -148,7 +148,10 @@ async function createCard(status, title) {
     });
     if (!response.ok) throw new Error('Failed to create card');
     const newCard = await response.json();
-    cards.push(newCard);
+    // Only add if not already present (WebSocket broadcast may have arrived first)
+    if (!cards.find(c => c.id === newCard.id)) {
+      cards.push(newCard);
+    }
     renderBoard();
   } catch (error) {
     console.error('Error creating card:', error);
