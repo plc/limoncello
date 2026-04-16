@@ -38,6 +38,9 @@
 - Clarified "project" terminology across all docs (README, CLAUDE.md, SPEC.md, API manual) to avoid confusion with software projects -- added notes explaining that a "project" in Limoncello is a board with custom columns (like separate Trello boards), and each software codebase typically gets its own Limoncello project/board
 
 ### Fixed
+- Drag-and-drop precision: cards now drop exactly where the user hovers instead of snapping back to their original position or dropping in an unpredictable location. The drop handler now calculates position based on the target card and mouse Y position.
+- Visual feedback during drag: cards below the hover position now visually indicate the drop zone with a blue border, making it clear where the card will land before releasing.
+- Cross-column drag-and-drop position handling: when dragging cards between columns, the position is now correctly calculated and persisted via the reorder endpoint instead of defaulting to the end of the target column.
 - Test suite updated to account for new features: projects table description column (6 columns instead of 5), welcome card auto-creation (tests delete welcome card to create truly empty projects), and card position calculations (use original position instead of hardcoded 0)
 
 ### Added
