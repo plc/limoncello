@@ -681,9 +681,6 @@ describe('Projects API', () => {
         .post('/api/projects')
         .send({ name: 'Empty Project' });
       emptyProjectId = res.body.id;
-
-      // Delete the auto-created welcome card to make project truly empty
-      db.exec(`DELETE FROM cards WHERE project_id = '${emptyProjectId}'`);
     });
 
     it('deletes empty project', async () => {

@@ -6,9 +6,8 @@
 
 const express = require('express');
 const { db, DEFAULT_COLUMNS } = require('../db');
-const { projectId, cardId } = require('../lib/ids');
+const { projectId } = require('../lib/ids');
 const { isAuthConfigured, canAccessProject } = require('../lib/access');
-const { WELCOME_TITLE, WELCOME_DESCRIPTION } = require('../lib/welcome');
 
 const router = express.Router();
 
@@ -127,16 +126,6 @@ router.post('/', (req, res) => {
     INSERT INTO projects (id, name, description, columns, owner_key_id, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `).run(id, name.trim(), desc, columnsJson, ownerKeyId);
-
-  // Create a welcome card in the first column
-  const parsedColumns = JSON.parse(columnsJson);
-  const firstColumnKey = parsedColumns[0].key;
-  const welcomeCardId = cardId();
-
-  db.prepare(`
-    INSERT INTO cards (id, project_id, title, description, status, position, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))
-  `).run(welcomeCardId, id, WELCOME_TITLE, WELCOME_DESCRIPTION, firstColumnKey);
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
   res.status(201).json({ ...project, columns: JSON.parse(project.columns) });
