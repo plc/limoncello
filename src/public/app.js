@@ -381,6 +381,8 @@ function createCardElement(card) {
   cardEl.addEventListener('click', () => openCardModal(card));
   cardEl.addEventListener('dragstart', handleDragStart);
   cardEl.addEventListener('dragend', handleDragEnd);
+  cardEl.addEventListener('dragover', handleCardDragOver);
+  cardEl.addEventListener('dragenter', handleCardDragEnter);
 
   return cardEl;
 }
@@ -464,8 +466,35 @@ function handleDragEnd() {
   document.querySelectorAll('.column').forEach(col => {
     col.classList.remove('drag-over');
   });
-  // Remove all drag placeholders
-  document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+  // Remove all drag visual effects
+  document.querySelectorAll('.card').forEach(card => {
+    card.classList.remove('drag-over-card');
+    card.style.marginTop = '';
+  });
+}
+
+function handleCardDragEnter(e) {
+  if (!draggedCard || draggedCard === this) return;
+  e.preventDefault();
+}
+
+function handleCardDragOver(e) {
+  if (!draggedCard || draggedCard === this) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const rect = this.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
+
+  // Clear all previous drag indicators
+  document.querySelectorAll('.card').forEach(card => {
+    card.classList.remove('drag-over-card');
+  });
+
+  // Add indicator to this card
+  this.classList.add('drag-over-card');
+
+  return false;
 }
 
 function handleDragOver(e) {
@@ -473,47 +502,13 @@ function handleDragOver(e) {
     e.preventDefault();
   }
   e.dataTransfer.dropEffect = 'move';
-  this.classList.add('drag-over');
 
-  // Show placeholder at drop position
-  const column = this.dataset.status;
-  if (column && draggedCard) {
-    updateDragPlaceholder(column, e.clientY);
-  }
+  const column = this;
+  if (!column.classList) return false;
+
+  column.classList.add('drag-over');
 
   return false;
-}
-
-function updateDragPlaceholder(status, mouseY) {
-  const container = document.querySelector(`.cards-container[data-status="${status}"]`);
-  if (!container) return;
-
-  // Remove existing placeholder
-  const existingPlaceholder = container.querySelector('.drag-placeholder');
-  if (existingPlaceholder) existingPlaceholder.remove();
-
-  // Create placeholder
-  const placeholder = document.createElement('div');
-  placeholder.className = 'drag-placeholder';
-
-  // Find insertion point
-  const cardElements = Array.from(container.querySelectorAll('.card:not(.dragging)'));
-  let insertBeforeCard = null;
-
-  for (const card of cardElements) {
-    const rect = card.getBoundingClientRect();
-    if (mouseY < rect.top + rect.height / 2) {
-      insertBeforeCard = card;
-      break;
-    }
-  }
-
-  // Insert placeholder
-  if (insertBeforeCard) {
-    container.insertBefore(placeholder, insertBeforeCard);
-  } else {
-    container.appendChild(placeholder);
-  }
 }
 
 function handleDragLeave(e) {
@@ -523,9 +518,6 @@ function handleDragLeave(e) {
 
   if (!column.contains(relatedTarget)) {
     this.classList.remove('drag-over');
-    // Remove placeholder when leaving column
-    const placeholder = column.querySelector('.drag-placeholder');
-    if (placeholder) placeholder.remove();
   }
 }
 
@@ -535,51 +527,93 @@ async function handleDrop(e) {
   }
   e.preventDefault();
 
-  this.classList.remove('drag-over');
+  // Clean up visual effects
+  document.querySelectorAll('.column').forEach(col => {
+    col.classList.remove('drag-over');
+  });
+  document.querySelectorAll('.card').forEach(card => {
+    card.classList.remove('drag-over-card');
+  });
 
-  const targetColumn = this.dataset.status;
+  if (!draggedCard) return false;
+
   const cardId = draggedCard.dataset.id;
 
-  if (sourceColumn === targetColumn) {
-    await handleReorderInColumn(targetColumn, cardId, e);
-  } else {
-    await updateCard(cardId, { status: targetColumn });
+  // Determine target column from the drop event
+  let targetColumn = null;
+  let targetCard = null;
+
+  // Check if we dropped on a card
+  if (e.target.classList.contains('card')) {
+    targetCard = e.target;
+    targetColumn = targetCard.closest('.column').dataset.status;
+  } else if (e.target.classList.contains('cards-container')) {
+    targetColumn = e.target.dataset.status;
+  } else if (e.target.closest('.column')) {
+    targetColumn = e.target.closest('.column').dataset.status;
   }
+
+  if (!targetColumn) return false;
+
+  await handleCardDrop(cardId, targetColumn, targetCard, e);
 
   return false;
 }
 
-async function handleReorderInColumn(status, cardId, e) {
-  const container = document.querySelector(`.cards-container[data-status="${status}"]`);
-  const cardElements = Array.from(container.querySelectorAll('.card'));
+async function handleCardDrop(cardId, targetStatus, targetCard, e) {
+  const columnCards = cards
+    .filter(card => card.status === targetStatus)
+    .sort((a, b) => a.position - b.position);
 
-  const draggedIndex = cardElements.findIndex(el => el.dataset.id === cardId);
-  let dropIndex = cardElements.length;
+  let dropIndex = columnCards.length;
 
-  for (let i = 0; i < cardElements.length; i++) {
-    const rect = cardElements[i].getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) {
-      dropIndex = i;
-      break;
+  if (targetCard && targetCard !== draggedCard) {
+    // Find the drop position based on the target card
+    const targetCardId = targetCard.dataset.id;
+    const targetIndex = columnCards.findIndex(c => c.id === targetCardId);
+
+    if (targetIndex !== -1) {
+      const rect = targetCard.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      // Drop before or after the target card based on mouse position
+      if (e.clientY < midY) {
+        dropIndex = targetIndex;
+      } else {
+        dropIndex = targetIndex + 1;
+      }
     }
   }
 
-  if (draggedIndex === dropIndex || draggedIndex + 1 === dropIndex) {
-    return;
+  const draggedCardData = cards.find(c => c.id === cardId);
+  if (!draggedCardData) return;
+
+  // If moving within the same column, remove the card first to get correct indices
+  if (sourceColumn === targetStatus) {
+    const currentIndex = columnCards.findIndex(c => c.id === cardId);
+    if (currentIndex !== -1) {
+      columnCards.splice(currentIndex, 1);
+      // Adjust drop index if dragging down
+      if (currentIndex < dropIndex) {
+        dropIndex--;
+      }
+    }
+
+    // Check if position hasn't actually changed
+    if (currentIndex === dropIndex) {
+      return;
+    }
   }
 
-  const columnCards = cards
-    .filter(card => card.status === status)
-    .sort((a, b) => a.position - b.position);
+  // Insert at the new position
+  const movedCard = { ...draggedCardData, status: targetStatus };
+  columnCards.splice(dropIndex, 0, movedCard);
 
-  const movedCard = columnCards[draggedIndex];
-  columnCards.splice(draggedIndex, 1);
-  const insertIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
-  columnCards.splice(insertIndex, 0, movedCard);
-
+  // Prepare reorder data
   const reorderData = columnCards.map((card, index) => ({
     id: card.id,
-    position: index
+    position: index,
+    status: targetStatus
   }));
 
   await reorderCards(reorderData);

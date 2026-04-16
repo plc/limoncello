@@ -269,8 +269,14 @@ body {
 }
 
 .card.dragging {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: grabbing;
+  transform: rotate(2deg);
+}
+
+.card.drag-over-card {
+  border-top: 3px solid #4a90e2;
+  margin-top: 8px;
 }
 
 .drag-placeholder {
